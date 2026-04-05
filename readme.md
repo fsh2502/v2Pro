@@ -1,50 +1,142 @@
-<img src="https://avatars.githubusercontent.com/u/56885001?s=200&v=4" alt="logo" width="130" height="130" align="right"/>
+# V2Board
 
-[![](https://img.shields.io/badge/TgChat-@UnOfficialV2board讨论-blue.svg)](https://t.me/unofficialV2board)
+V2Board là hệ thống quản lý dịch vụ proxy đa giao thức, được xây dựng trên nền tảng Laravel 8. Hỗ trợ quản lý gói đăng ký, quản lý node server đa giao thức và bảng điều khiển quản trị toàn diện.
 
-## 本分支支持的后端
- - [修改版V2bX](https://github.com/wyx2685/V2bX)
- - [v2node](https://github.com/wyx2685/v2node)
+## Yêu cầu hệ thống
 
-## 原版迁移步骤
-
-按以下步骤进行面板代码文件迁移：
-
-    git remote set-url origin https://github.com/wyx2685/v2board  
-    git checkout master  
-    ./update.sh  
-
-
-按以下步骤配置缓存驱动为redis，然后刷新设置缓存，重启队列:
-
-    sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=redis/' .env
-    php artisan config:clear
-    php artisan config:cache
-    php artisan horizon:terminate
-
-最后进入后台重新保存主题： 主题配置-选择default主题-主题设置-确定保存
-
-# **V2Board**
-
-- PHP7.3+
+- PHP >= 7.3
 - Composer
-- MySQL5.5+
+- MySQL >= 5.5
 - Redis
-- Laravel
 
-## Demo
-[Demo_user](https://v2bdemo.v-50.me/)
-[Demo_admin](https://v2bdemo.v-50.me/admindashboard)
-邮箱和密码可随意输入
+## Tính năng
 
-## Document
-[Click](https://v2board.com)
+### Hỗ trợ đa giao thức
 
-## Sponsors
-Thanks to the open source project license provided by [Jetbrains](https://www.jetbrains.com/)
+- VMess
+- VLess
+- Trojan
+- Shadowsocks
+- Hysteria
+- TUIC
+- AnyTLS
 
-## Community
-🔔Telegram Group: [@unofficialV2board](https://t.me/unofficialV2board)  
+### Định dạng đăng ký (19 ứng dụng khách)
 
-## How to Feedback
-Follow the template in the issue to submit your question correctly, and we will have someone follow up with you.
+Clash, ClashMeta, ClashNyanpasu, ClashVerge, Loon, Passwall, QuantumultX, SagerNet, Shadowrocket, SSRPlus, Stash, Surfboard, Surge, V2rayN, V2rayNG, V2RayTun, INCY, Happ, General, Shadowsocks
+
+### Tích hợp thanh toán
+
+- Alipay F2F (thanh toán trực tiếp)
+- Stripe
+- Hệ thống cổng thanh toán mở rộng qua `app/Payments/`
+
+### Bảng điều khiển quản trị
+
+- Quản lý người dùng
+- Quản lý gói đăng ký
+- Quản lý đơn hàng & thanh toán
+- Quản lý server & node (đa giao thức)
+- Hệ thống mã giảm giá & thẻ quà tặng
+- Hệ thống hỗ trợ (ticket)
+- Cơ sở kiến thức / tài liệu hướng dẫn
+- Thông báo hệ thống
+- Thống kê & phân tích
+- Cấu hình giao diện
+- Quản lý hoa hồng / giới thiệu
+
+### Bảng điều khiển người dùng
+
+- Mua & gia hạn gói đăng ký
+- Danh sách server & link đăng ký
+- Thống kê lưu lượng sử dụng
+- Hệ thống hỗ trợ (ticket)
+- Hệ thống giới thiệu / mời bạn bè
+- Tích hợp Telegram bot
+- Hỗ trợ đa ngôn ngữ
+
+### Tác vụ nền (qua Laravel Horizon)
+
+- Xử lý đơn hàng & tự động hủy
+- Thu thập thống kê lưu lượng
+- Gửi thông báo qua Email & Telegram
+- Tính toán hoa hồng giới thiệu
+- Kiểm tra gia hạn đăng ký
+
+## Cài đặt
+
+```bash
+git clone https://github.com/your-repo/v2board.git
+cd v2board
+chmod +x init.sh
+./init.sh
+```
+
+Hoặc cài đặt thủ công:
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+# Chỉnh sửa file .env để cấu hình database và Redis
+php artisan v2board:install
+```
+
+## Cấu hình
+
+Chỉnh sửa file `.env`:
+
+```env
+DB_HOST=localhost
+DB_DATABASE=v2board
+DB_USERNAME=root
+DB_PASSWORD=mat_khau_cua_ban
+
+REDIS_HOST=127.0.0.1
+
+CACHE_DRIVER=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+```
+
+### Khởi chạy Queue Worker
+
+```bash
+php artisan horizon
+```
+
+Truy cập bảng điều khiển Horizon tại `/monitor`.
+
+## Cập nhật
+
+```bash
+./update.sh
+```
+
+## Các lệnh CLI
+
+| Lệnh | Mô tả |
+|-------|--------|
+| `php artisan v2board:install` | Chạy cài đặt |
+| `php artisan v2board:update` | Chạy cập nhật |
+| `php artisan check:order` | Kiểm tra & xử lý đơn hàng |
+| `php artisan check:server` | Kiểm tra trạng thái server |
+| `php artisan check:commission` | Xử lý hoa hồng giới thiệu |
+| `php artisan check:ticket` | Quản lý trạng thái ticket |
+| `php artisan check:renewal` | Kiểm tra gia hạn đăng ký |
+| `php artisan reset:password` | Đặt lại mật khẩu quản trị |
+| `php artisan reset:traffic` | Đặt lại dữ liệu lưu lượng |
+| `php artisan reset:log` | Xóa log hệ thống |
+| `php artisan send:remindMail` | Gửi email nhắc nhở |
+
+## Công nghệ sử dụng
+
+- **Backend:** Laravel 8 + PHP
+- **Hàng đợi:** Redis + Laravel Horizon
+- **Cơ sở dữ liệu:** MySQL
+- **Cache/Session:** Redis
+- **Thanh toán:** Stripe SDK, Alipay F2F
+
+## Giấy phép
+
+MIT
