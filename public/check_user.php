@@ -4,7 +4,7 @@ ini_set('display_errors', 0);
 error_reporting(0);
 header('Content-Type: application/json');
 
-// Đặt múi giờ Việt Nam
+// Đặt múi giờ JP
 date_default_timezone_set('Asia/Tokyo');
 
 $token = $_GET['token'] ?? '';
