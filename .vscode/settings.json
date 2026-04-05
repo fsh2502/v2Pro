@@ -1,8 +1,0 @@
-{
-  "git.enableSmartCommit": true,
-  "git.suggestSmartCommit": false,
-  "git.confirmSync": false,
-  "git.autofetch": true,
-  "git.postCommitCommand": "push",
-  "scm.alwaysShowActions": true
-}
