@@ -682,7 +682,7 @@ window.zhViDictionary = {
   '关键字匹配' : 'Khớp Từ Khóa',
   '正则表达式匹配' : 'Khớp Biểu Thức Chính Quy',
   '节点对接API地址' : 'Địa chỉ API kết nối nút',
-  '预定义域名列表' : 'Danh sách tên miền được định nghĩa trước'
+  '预定义域名列表' : 'Danh sách tên miền được định nghĩa trước',
   '请选择动作' : 'Vui lòng chọn hành động',
   '禁止访问(域名目标)' : 'Cấm truy cập (mục tiêu tên miền)',
   '禁止访问(IP目标)' : 'Cấm truy cập (mục tiêu IP)',
