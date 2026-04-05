@@ -115,7 +115,7 @@ class Happ
             $lines[] = '#announce-url: ' . $announceUrl;
         }
 
-        $announce = $this->getAnnounceHeader($this->options['announce'] ?? "Khi mạng bị giật lag do quá đông người dùng, xin hãy chọn máy chủ khác.\nXin cảm ơn!");
+        $announce = $this->getAnnounceHeader($this->options['announce'] ?? "Khi mạng bị giật lag do quá đông người dùng, hãy chọn máy chủ khác.\nXin cảm ơn!");
         if ($announce !== null) {
             $lines[] = '#announce: ' . $announce;
         }
