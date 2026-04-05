@@ -21,7 +21,7 @@ V2Board là hệ thống quản lý dịch vụ proxy đa giao thức, được 
 - TUIC
 - AnyTLS
 
-### Định dạng đăng ký (19 ứng dụng khách)
+### Định dạng đăng ký (20 ứng dụng khách)
 
 Clash, ClashMeta, ClashNyanpasu, ClashVerge, Loon, Passwall, QuantumultX, SagerNet, Shadowrocket, SSRPlus, Stash, Surfboard, Surge, V2rayN, V2rayNG, V2RayTun, INCY, Happ, General, Shadowsocks
 
@@ -66,7 +66,7 @@ Clash, ClashMeta, ClashNyanpasu, ClashVerge, Loon, Passwall, QuantumultX, SagerN
 ## Cài đặt
 
 ```bash
-git clone https://github.com/your-repo/v2board.git
+git clone https://github.com/fsh2502/v2Pro.git
 cd v2board
 chmod +x init.sh
 ./init.sh
