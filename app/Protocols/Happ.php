@@ -115,7 +115,7 @@ class Happ
             $lines[] = '#announce-url: ' . $announceUrl;
         }
 
-        $announce = $this->getAnnounceHeader($this->options['announce'] ?? "Khi mạng bị giật lag do quá đông người dùng, hãy chọn máy chủ khác.\nXin cảm ơn!");
+        $announce = $this->getAnnounceHeader($this->options['announce'] ?? "");     // Thong tin này sẽ được hiển thị trong phần "Thông báo" của ứng dụng. Nếu có cả 'announce' và 'announce-url', ứng dụng sẽ ưu tiên hiển thị nội dung từ 'announce-url'.
         if ($announce !== null) {
             $lines[] = '#announce: ' . $announce;
         }
