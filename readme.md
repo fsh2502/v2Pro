@@ -66,7 +66,7 @@ Clash, ClashMeta, ClashNyanpasu, ClashVerge, Loon, Passwall, QuantumultX, SagerN
 ## Cài đặt
 
 ```bash
-git clone [https://github.com/your-repo/v2board.git](https://github.com/fsh2502/v2Pro.git)
+git clone https://github.com/fsh2502/v2Pro.git
 cd v2board
 chmod +x init.sh
 ./init.sh
