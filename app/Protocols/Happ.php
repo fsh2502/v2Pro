@@ -7,912 +7,580 @@ use App\Utils\Helper;
 class Happ
 {
     public $flag = 'happ';
-    private const DEFAULT_PROFILE_UPDATE_INTERVAL = 2; //Thời gian (tính bằng giờ) để ứng dụng kiểm tra cập nhật cấu hình. Giá trị mặc định là 2 giờ.
-    private const MAX_PROFILE_TITLE_LENGTH = 25;
-    private const MAX_ANNOUNCE_LENGTH = 200;
-    private const MAX_ANNOUNCE_LINES = 5;
-    private const MILLISECOND_TIMESTAMP_THRESHOLD = 32000000000;
-    private const SKIPPED_SCHEMES = ['ssr', 'tuic', 'hysteria'];
-    private const ALLOWED_SORT_ORDERS = ['ping', 'name', 'none'];
-
     private $servers;
     private $user;
-    private $options;
 
-    public function __construct($user, $servers, array $options = null)
+    public function __construct($user, $servers)
     {
         $this->user = $user;
         $this->servers = $servers;
-        $this->options = $options ?? [];
     }
 
     public function handle()
     {
-        $appName = $this->getSubscriptionName();
-        $body = base64_encode($this->buildSubscriptionBody($appName));
-        $headers = $this->buildHeaders($appName);
+        $user = $this->user;
+        $servers = $this->servers;
+        $body = '';
+        $headers = $this->buildHeaders($user);
+        $isExpired = isset($user['expired_at']) && $user['expired_at'] !== null && (int) $user['expired_at'] <= time();
 
+        foreach ($servers as $server) {
+            if (($server['type'] ?? null) === 'v2node') {
+                $server['type'] = $server['protocol'];
+            }
+            if ($isExpired) {
+                $server['happ_server_description'] = 'Gói đã hết hạn';
+            }
+
+            switch ($server['type']) {
+                case 'vmess':
+                    $body .= self::buildVmess($user['uuid'], $server);
+                    break;
+                case 'vless':
+                    $body .= self::buildVless($user['uuid'], $server);
+                    break;
+                case 'trojan':
+                    $body .= self::buildTrojan($user['uuid'], $server);
+                    break;
+                case 'shadowsocks':
+                    $body .= self::buildShadowsocks($user['uuid'], $server);
+                    break;
+                case 'hysteria':
+                    $body .= self::buildHysteria($user['uuid'], $server);
+                    break;
+                case 'hysteria2':
+                    $body .= self::buildHysteria2($user['uuid'], $server);
+                    break;
+                case 'tuic':
+                    $body .= self::buildTuic($user['uuid'], $server);
+                    break;
+                case 'anytls':
+                    $body .= self::buildAnytls($user['uuid'], $server);
+                    break;
+            }
+        }
+
+        if (config('v2board.happ_encryption_enable', 0)) {
+            $key = substr(md5($user['uuid']), 0, 16);
+            $iv = substr(md5(config('app.key')), 0, 16);
+            $body = openssl_encrypt($body, 'aes-128-cbc', $key, 0, $iv);
+            $headers['encryption'] = 'aes-128-cbc';
+            $headers['encryption-key'] = $key;
+            $headers['encryption-iv'] = $iv;
+        }
+
+        return $this->buildResponse($body, $headers);
+    }
+
+    private function buildHeaders($user)
+    {
+        $appName = $this->limitText(config('v2board.app_name', 'V2Board'), 25);
+        $siteUrl = config('v2board.app_site_url') ?: config('v2board.app_url', '');
+        $supportUrl = config('v2board.app_support_url') ?: $siteUrl;
+        $expireAt = (int) ($user['expired_at'] ?? 0);
+        $headers = [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename*=UTF-8''" . rawurlencode($appName),
+            'profile-title' => $appName,
+            'profile-update-interval' => '24',
+            'subscription-userinfo' => "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$expireAt}",
+        ];
+
+        $this->addHeader($headers, 'profile-web-page-url', $siteUrl);
+        $this->addHeader($headers, 'support-url', $supportUrl);
+        $headers['routing-enable'] = $this->boolValue(config('v2board.app_routing_enable', 1));
+
+        $announce = config('v2board.app_announce', '');
+        if ($announce !== '') {
+            $headers['announce'] = 'base64:' . base64_encode($announce);
+        }
+
+        $providerId = trim((string) config('v2board.app_provider_id', ''));
+        if ($providerId === '') {
+            return $headers;
+        }
+
+        $headers['providerid'] = $providerId;
+        $this->addHeader($headers, 'fallback-url', config('v2board.app_fallback_url'));
+
+        if (config('v2board.app_sub_info_text', null) !== null) {
+            $headers['sub-info-color'] = config('v2board.app_sub_info_color', 'blue');
+            $headers['sub-info-text'] = $this->limitText((string) config('v2board.app_sub_info_text', ''), 200);
+            $this->addHeader($headers, 'sub-info-button-text', $this->limitText((string) config('v2board.app_sub_info_button_text', ''), 25));
+            $this->addHeader($headers, 'sub-info-button-link', config('v2board.app_sub_info_button_link'));
+        }
+
+        $headers['sub-expire'] = $this->boolValue(config('v2board.app_sub_expire_notify', 0));
+        $this->addHeader($headers, 'sub-expire-button-link', config('v2board.app_sub_expire_button_link'));
+
+        $headers['notification-subs-expire'] = $this->boolValue(config('v2board.app_notification_expire', 0));
+        $headers['hide-settings'] = $this->boolValue(config('v2board.app_hide_settings', config('v2board.happ_hide_settings', 0)));
+        $headers['subscription-autoconnect'] = $this->boolValue(config('v2board.app_auto_connect', 0));
+        $this->addHeader($headers, 'subscription-autoconnect-type', config('v2board.app_auto_connect_type'));
+        $headers['subscription-ping-onopen-enabled'] = $this->boolValue(config('v2board.app_auto_ping', 0));
+        $headers['subscription-auto-update-enable'] = $this->boolValue(config('v2board.app_auto_update', 0));
+        $headers['subscription-auto-update-open-enable'] = $this->boolValue(config('v2board.app_auto_update_on_open', 0));
+
+        $headers['fragmentation-enable'] = $this->boolValue(config('v2board.app_fragment_enable', 0));
+        $this->addHeader($headers, 'fragmentation-packets', config('v2board.app_fragment_packets'));
+        $this->addHeader($headers, 'fragmentation-length', config('v2board.app_fragment_length'));
+        $this->addHeader($headers, 'fragmentation-interval', config('v2board.app_fragment_interval'));
+        $headers['noises-enable'] = $this->boolValue(config('v2board.app_noises_enable', 0));
+        $this->addHeader($headers, 'noises-type', config('v2board.app_noises_type'));
+        $this->addHeader($headers, 'noises-packet', config('v2board.app_noises_packet'));
+        $this->addHeader($headers, 'noises-delay', config('v2board.app_noises_delay'));
+
+        $this->addHeader($headers, 'ping-type', config('v2board.app_ping_type'));
+        $this->addHeader($headers, 'check-url-via-proxy', config('v2board.app_ping_check_url'));
+        $this->addHeader($headers, 'ping-result', config('v2board.app_ping_result'));
+        $this->addHeader($headers, 'change-user-agent', config('v2board.app_change_user_agent'));
+        $headers['app-auto-start'] = $this->boolValue(config('v2board.app_auto_start', 0));
+        $headers['subscription-always-hwid-enable'] = $this->boolValue(config('v2board.app_hwid_force', 0));
+        $headers['server-address-resolve-enable'] = $this->boolValue(config('v2board.app_server_resolve_enable', 0));
+        $this->addHeader($headers, 'server-address-resolve-dns-domain', config('v2board.app_server_resolve_dns_domain'));
+        $this->addHeader($headers, 'server-address-resolve-dns-ip', config('v2board.app_server_resolve_dns_ip'));
+        $headers['sniffing-enable'] = $this->boolValue(config('v2board.app_sniffing_enable', 1));
+        $headers['subscriptions-collapse'] = $this->boolValue(config('v2board.app_subscriptions_collapse', 1));
+        $headers['no-limit-enabled'] = $this->boolValue(config('v2board.app_no_limit_enabled', 0));
+        $this->addHeader($headers, 'color-profile', config('v2board.app_color_profile'));
+
+        if ((int) config('v2board.app_tun_enable', 0) === 1) {
+            $headers['tun-enable'] = '1';
+        }
+        if ((int) config('v2board.app_proxy_enable', 0) === 1) {
+            $headers['proxy-enable'] = '1';
+        }
+
+        $this->addHeader($headers, 'tun-mode', config('v2board.app_tun_mode'));
+        $this->addHeader($headers, 'tun-type', config('v2board.app_tun_type'));
+        $this->addHeader($headers, 'per-app-proxy-mode', config('v2board.app_per_app_proxy_mode'));
+        $this->addHeader($headers, 'per-app-proxy-list', config('v2board.app_per_app_proxy_list'));
+        $headers['mux-enable'] = $this->boolValue(config('v2board.app_mux_enable', 0));
+        $this->addHeader($headers, 'mux-tcp-connections', config('v2board.app_mux_tcp_connections'));
+        $this->addHeader($headers, 'mux-xudp-connections', config('v2board.app_mux_xudp_connections'));
+        $this->addHeader($headers, 'mux-quic', config('v2board.app_mux_quic'));
+        $this->addHeader($headers, 'exclude-routes', config('v2board.app_exclude_routes'));
+
+        return $headers;
+    }
+
+    private function buildResponse($body, array $headers)
+    {
         $response = response($body, 200);
         foreach ($headers as $name => $value) {
             if ($value === null || $value === '') {
                 continue;
             }
-
-            $response->header($name, $value);
+            $response->header($name, (string) $value);
         }
-
         return $response;
     }
 
-    protected function buildSubscriptionBody($appName)
+    private function addHeader(array &$headers, $name, $value)
     {
-        $lines = [];
-        foreach ($this->servers as $server) {
-            $uri = $this->buildAppUri($server);
-            if ($uri !== null && $uri !== '') {
-                $lines[] = $uri;
-            }
+        if ($value === null || $value === '') {
+            return;
         }
-
-        $lines = array_merge($lines, $this->buildBodyMetadataLines($appName));
-
-        return implode("\n", $lines);
+        $headers[$name] = $value;
     }
 
-    protected function buildHeaders($appName)
+    private function boolValue($value)
     {
-        $profileWebPageUrl = $this->sanitizeHeaderValue(
-            $this->options['profile_web_page_url'] ?? $this->options['homepage'] ?? null
-        );
+        return (int) $value === 1 ? '1' : '0';
+    }
 
-        $headers = [
-            'profile-title' => $this->getProfileTitleHeader($appName),
-            'subscription-name' => $this->getPlainProfileTitle($appName),
-            'profile-description' => $this->getProfileDescriptionHeader(),
-            'profile-update-interval' => (string) $this->getProfileUpdateInterval(),
-            'subscription-userinfo' => $this->getUserInfoHeader($this->user),
-            'support-url' => $this->sanitizeHeaderValue($this->options['support_url'] ?? null),
-            'profile-web-page-url' => $profileWebPageUrl,
-            'homepage' => $profileWebPageUrl,
-            'announce-url' => $this->sanitizeHeaderValue($this->options['announce_url'] ?? null),
-            'announce' => $this->getAnnounceHeader($this->options['announce'] ?? null),
-            'autorouting' => $this->sanitizeHeaderValue($this->options['autorouting'] ?? null),
-            'routing' => $this->sanitizeHeaderValue($this->options['routing'] ?? null),
-            'sort-order' => $this->getSortOrderHeader(),
-            'content-disposition' => $this->getContentDispositionHeader($appName),
+    private function limitText($value, $limit)
+    {
+        return mb_substr((string) $value, 0, $limit);
+    }
+
+    // ==================== VMess ====================
+
+    public static function buildVmess($uuid, $server)
+    {
+        $config = [
+            "v" => "2",
+            "ps" => $server['name'],
+            "add" => Helper::formatHost($server['host']),
+            "port" => (string) $server['port'],
+            "id" => $uuid,
+            "aid" => "0",
+            "scy" => "auto",
+            "net" => $server['network'],
+            "type" => "none",
+            "host" => "",
+            "path" => "",
+            "tls" => $server['tls'] ? "tls" : "",
+            "fp" => "chrome",
         ];
 
-        if (array_key_exists('update_always', $this->options)) {
-            $headers['update-always'] = $this->options['update_always'] ? 'true' : 'false';
+        if ($server['tls']) {
+            $tlsSettings = $server['tls_settings'] ?? $server['tlsSettings'] ?? [];
+            $config['allowInsecure'] = (int) ($tlsSettings['allow_insecure'] ?? $tlsSettings['allowInsecure'] ?? 0);
+            $config['sni'] = $tlsSettings['server_name'] ?? $tlsSettings['serverName'] ?? '';
         }
 
-        return $headers;
+        if (!empty($server['happ_server_description'])) {
+            $config['meta'] = [
+                'serverDescription' => $server['happ_server_description'],
+            ];
+        }
+
+        $networkSettings = $server['network_settings'] ?? $server['networkSettings'] ?? [];
+        switch ($server['network']) {
+            case 'tcp':
+                if (!empty($networkSettings['header']['type']) && $networkSettings['header']['type'] === 'http') {
+                    $config['type'] = $networkSettings['header']['type'];
+                    $config['host'] = $networkSettings['header']['request']['headers']['Host'][0] ?? '';
+                    $config['path'] = $networkSettings['header']['request']['path'][0] ?? '';
+                }
+                break;
+            case 'ws':
+                $config['path'] = $networkSettings['path'] ?? '';
+                $config['host'] = $networkSettings['headers']['Host'] ?? '';
+                if (isset($networkSettings['security'])) {
+                    $config['scy'] = $networkSettings['security'];
+                }
+                break;
+            case 'grpc':
+                $config['path'] = $networkSettings['serviceName'] ?? '';
+                break;
+            case 'kcp':
+                $config['type'] = $networkSettings['header']['type'] ?? 'none';
+                if (isset($networkSettings['seed'])) {
+                    $config['path'] = $networkSettings['seed'];
+                }
+                break;
+            case 'httpupgrade':
+                $config['path'] = $networkSettings['path'] ?? '';
+                $config['host'] = $networkSettings['host'] ?? '';
+                break;
+            case 'xhttp':
+                $config['path'] = $networkSettings['path'] ?? '';
+                $config['host'] = $networkSettings['host'] ?? '';
+                $config['mode'] = $networkSettings['mode'] ?? 'auto';
+                if (isset($networkSettings['extra'])) {
+                    $config['extra'] = json_encode($networkSettings['extra'], JSON_UNESCAPED_SLASHES);
+                }
+                break;
+        }
+
+        return "vmess://" . base64_encode(json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) . "\r\n";
     }
 
-    protected function buildBodyMetadataLines($appName)
+    // ==================== VLESS ====================
+
+    public static function buildVless($uuid, $server)
     {
-        $lines = [];
-
-        $profileTitle = $this->getProfileTitleHeader($appName);
-        if ($profileTitle !== null) {
-            $lines[] = '#profile-title: ' . $profileTitle;
-        }
-
-        $supportUrl = $this->sanitizeHeaderValue($this->options['support_url'] ?? null);
-        if ($supportUrl !== null) {
-            $lines[] = '#support-url: ' . $supportUrl;
-        }
-
-        $profileWebPageUrl = $this->sanitizeHeaderValue(
-            $this->options['profile_web_page_url'] ?? $this->options['homepage'] ?? null
-        );
-        if ($profileWebPageUrl !== null) {
-            $lines[] = '#profile-web-page-url: ' . $profileWebPageUrl;
-        }
-
-        $announceUrl = $this->sanitizeHeaderValue($this->options['announce_url'] ?? null);
-        if ($announceUrl !== null) {
-            $lines[] = '#announce-url: ' . $announceUrl;
-        }
-
-        $announce = $this->getAnnounceHeader($this->options['announce'] ?? "");     // Thong tin này sẽ được hiển thị trong phần "Thông báo" của ứng dụng. Nếu có cả 'announce' và 'announce-url', ứng dụng sẽ ưu tiên hiển thị nội dung từ 'announce-url'.
-        if ($announce !== null) {
-            $lines[] = '#announce: ' . $announce;
-        }
-
-        $lines[] = '#profile-update-interval: ' . $this->getProfileUpdateInterval();
-
-        $autorouting = $this->sanitizeHeaderValue($this->options['autorouting'] ?? null);
-        if ($autorouting !== null) {
-            $lines[] = '://autorouting/onadd/' . $autorouting;
-        }
-
-        $routing = $this->sanitizeHeaderValue($this->options['routing'] ?? null);
-        if ($routing !== null) {
-            $lines[] = $this->looksLikeUrl($routing)
-                ? '://routing/onadd/' . $routing
-                : '://routing/add/' . $routing;
-        }
-
-        return $lines;
-    }
-
-    protected function buildAppUri($server)
-    {
-        $baseUri = trim((string) Helper::buildUri($this->user['uuid'], $server));
-        $baseUri = rtrim($baseUri, "_ \t\n\r\0\x0B");
-
-        if ($baseUri === '') {
-            return null;
-        }
-
-        $scheme = $this->getUriScheme($baseUri);
-        if ($scheme !== null && in_array($scheme, self::SKIPPED_SCHEMES, true)) {
-            return null;
-        }
-
-        switch ($scheme) {
-            case 'vless':
-                return $this->normalizeVlessUri($baseUri);
-            case 'vmess':
-                return $this->normalizeVmessUri($baseUri);
-            case 'trojan':
-                return $this->normalizeTrojanUri($baseUri);
-            case 'ss':
-                return $this->normalizeShadowsocksUri($baseUri);
-            case 'hysteria2':
-            case 'hy2':
-                return $this->normalizeHysteria2Uri($baseUri);
-            case 'anytls':
-                return $this->normalizeAnytlsUri($baseUri);
-            case 'socks':
-                return $this->normalizeSocksUri($baseUri);
-            case 'wireguard':
-                return $this->normalizeWireGuardUri($baseUri);
-        }
-
-        return $baseUri;
-    }
-
-    // ========================================
-    // URI Normalization
-    // ========================================
-
-    protected function normalizeVlessUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        if (empty($query['encryption'])) {
-            $query['encryption'] = 'none';
-        }
-        if (empty($query['type'])) {
-            $query['type'] = 'tcp';
-        }
-        if (empty($query['security'])) {
-            $query['security'] = 'none';
-        }
-
-        $query['type'] = $this->normalizeTransportType($query['type']);
-
-        if (in_array($query['security'], ['tls', 'reality'], true) && empty($query['sni'])) {
-            $query['sni'] = $this->normalizeSniHost($parts['host']);
-        }
-
-        $fingerprint = $this->getFirstOption(['vless_fingerprint', 'tls_fingerprint', 'fingerprint']);
-        if ($fingerprint !== null && empty($query['fp'])) {
-            $query['fp'] = $fingerprint;
-        }
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeVmessUri($baseUri)
-    {
-        $payload = substr($baseUri, strlen('vmess://'));
-        $decodedPayload = base64_decode($this->normalizeBase64Payload($payload), true);
-        if ($decodedPayload === false) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $config = json_decode($decodedPayload, true);
-        if (!is_array($config)) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        if (empty($config['scy'])) {
-            $config['scy'] = 'auto';
-        }
-        if (!isset($config['aid']) || $config['aid'] === '') {
-            $config['aid'] = 0;
-        }
-        if (empty($config['net'])) {
-            $config['net'] = 'tcp';
-        }
-
-        $config['net'] = $this->normalizeTransportType($config['net']);
-
-        if (isset($config['ps']) && is_string($config['ps'])) {
-            $config['ps'] = trim($config['ps']);
-        }
-
-        if (isset($config['tls']) && $config['tls'] === 'none') {
-            $config['tls'] = '';
-        }
-
-        if (!empty($config['security']) && empty($config['tls']) && $config['security'] === 'tls') {
-            $config['tls'] = 'tls';
-            unset($config['security']);
-        }
-
-        if (!empty($config['tls']) && empty($config['sni']) && !empty($config['add'])) {
-            $config['sni'] = $config['add'];
-        }
-
-        $fingerprint = $this->getFirstOption(['vmess_fingerprint', 'tls_fingerprint', 'fingerprint']);
-        if ($fingerprint !== null && empty($config['fp'])) {
-            $config['fp'] = $fingerprint;
-        }
-
-        $normalizedJson = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if ($normalizedJson === false) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        return 'vmess://' . base64_encode($normalizedJson);
-    }
-
-    protected function normalizeTrojanUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        if (empty($query['security'])) {
-            $query['security'] = 'tls';
-        }
-
-        if (empty($query['type'])) {
-            $query['type'] = 'tcp';
-        }
-
-        $query['type'] = $this->normalizeTransportType($query['type']);
-
-        if (empty($query['sni'])) {
-            $query['sni'] = !empty($query['peer']) ? $query['peer'] : $this->normalizeSniHost($parts['host']);
-        }
-
-        $fingerprint = $this->getFirstOption(['trojan_fingerprint', 'tls_fingerprint', 'fingerprint']);
-        if ($fingerprint !== null && empty($query['fp'])) {
-            $query['fp'] = $fingerprint;
-        }
-
-        $allowInsecure = $this->getAllowInsecureOption();
-        if ($allowInsecure !== null && !isset($query['allowInsecure'])) {
-            $query['allowInsecure'] = $allowInsecure ? '1' : '0';
-        }
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeShadowsocksUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null || $parts['userinfo'] === null || $parts['host'] === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeHysteria2Uri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        if (empty($query['sni'])) {
-            $query['sni'] = $this->normalizeSniHost($parts['host']);
-        }
-
-        $fingerprint = $this->getFirstOption(['hy2_fingerprint', 'tls_fingerprint', 'fingerprint']);
-        if ($fingerprint !== null && empty($query['fp'])) {
-            $query['fp'] = $fingerprint;
-        }
-
-        $allowInsecure = $this->getAllowInsecureOption();
-        if ($allowInsecure !== null && !isset($query['insecure'])) {
-            $query['insecure'] = $allowInsecure ? '1' : '0';
-        }
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeAnytlsUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        if (empty($query['sni'])) {
-            $query['sni'] = $this->normalizeSniHost($parts['host']);
-        }
-
-        $fingerprint = $this->getFirstOption(['anytls_fingerprint', 'tls_fingerprint', 'fingerprint']);
-        if ($fingerprint !== null && empty($query['fp'])) {
-            $query['fp'] = $fingerprint;
-        }
-
-        $allowInsecure = $this->getAllowInsecureOption();
-        if ($allowInsecure !== null && !isset($query['insecure'])) {
-            $query['insecure'] = $allowInsecure ? '1' : '0';
-        }
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeSocksUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    protected function normalizeWireGuardUri($baseUri)
-    {
-        $parts = $this->parseShareUri($baseUri);
-        if ($parts === null) {
-            return $this->normalizeRawShareUri($baseUri);
-        }
-
-        $query = $this->parseQueryString($parts['query']);
-
-        if (isset($query['publicKey']) && !isset($query['publickey'])) {
-            $query['publickey'] = $query['publicKey'];
-            unset($query['publicKey']);
-        }
-
-        if (isset($query['allowInsecure']) && !isset($query['allowinsecure'])) {
-            $query['allowinsecure'] = $query['allowInsecure'];
-            unset($query['allowInsecure']);
-        }
-
-        if (!empty($query['address'])) {
-            $query['address'] = preg_replace('/\s+/', '', $query['address']);
-        }
-
-        if (!empty($query['reserved'])) {
-            $query['reserved'] = preg_replace('/\s+/', '', $query['reserved']);
-        }
-
-        if (empty($query['mtu'])) {
-            $mtu = $this->getFirstOption(['wireguard_mtu', 'mtu']);
-            if ($mtu !== null) {
-                $query['mtu'] = $mtu;
-            }
-        }
-
-        $allowInsecure = $this->getAllowInsecureOption();
-        if ($allowInsecure !== null && !isset($query['allowinsecure'])) {
-            $query['allowinsecure'] = $allowInsecure ? '1' : '0';
-        }
-
-        return $this->buildShareUri($parts, $query);
-    }
-
-    // ========================================
-    // URI Parsing & Building
-    // ========================================
-
-    protected function parseShareUri($uri)
-    {
-        $scheme = $this->getUriScheme($uri);
-        if ($scheme === null) {
-            return null;
-        }
-
-        $prefix = $scheme . '://';
-        if (strpos($uri, $prefix) !== 0) {
-            return null;
-        }
-
-        $rest = substr($uri, strlen($prefix));
-        $fragment = null;
-        $fragmentPosition = strpos($rest, '#');
-        if ($fragmentPosition !== false) {
-            $fragment = substr($rest, $fragmentPosition + 1);
-            $rest = substr($rest, 0, $fragmentPosition);
-        }
-
-        $queryString = null;
-        $queryPosition = strpos($rest, '?');
-        if ($queryPosition !== false) {
-            $queryString = substr($rest, $queryPosition + 1);
-            $rest = substr($rest, 0, $queryPosition);
-        }
-
-        $authority = $this->splitShareAuthority($rest);
-        if ($authority === null) {
-            return null;
-        }
-
-        return [
-            'scheme' => $scheme,
-            'userinfo' => $authority['userinfo'],
-            'host' => $authority['host'],
-            'port' => $authority['port'],
-            'query' => $queryString,
-            'fragment' => $fragment,
+        $name = Helper::encodeURIComponent($server['name']);
+        $tlsSettings = $server['tls_settings'] ?? [];
+
+        $params = [
+            'type' => $server['network'],
+            'encryption' => 'none',
+            'security' => $server['tls'] != 0 ? ($server['tls'] == 2 ? 'reality' : 'tls') : '',
+            'fp' => $tlsSettings['fingerprint'] ?? 'chrome',
         ];
+
+        if (!empty($server['flow'])) {
+            $params['flow'] = $server['flow'];
+        }
+
+        if ($server['tls']) {
+            $params['sni'] = $tlsSettings['server_name'] ?? '';
+            $params['allowInsecure'] = $tlsSettings['allow_insecure'] ?? 0;
+            if ($server['tls'] == 2) {
+                $params['pbk'] = $tlsSettings['public_key'] ?? '';
+                $params['sid'] = $tlsSettings['short_id'] ?? '';
+            }
+        }
+
+        if (isset($server['encryption']) && $server['encryption'] === 'mlkem768x25519plus') {
+            $encSettings = $server['encryption_settings'] ?? [];
+            $enc = 'mlkem768x25519plus.' . ($encSettings['mode'] ?? 'native') . '.' . ($encSettings['rtt'] ?? '1rtt');
+            if (!empty($encSettings['client_padding'])) {
+                $enc .= '.' . $encSettings['client_padding'];
+            }
+            $enc .= '.' . ($encSettings['password'] ?? '');
+            $params['encryption'] = $enc;
+        }
+
+        self::applyNetworkSettings($server, $params);
+
+        $host = Helper::formatHost($server['host']);
+        $port = $server['port'];
+        $query = http_build_query($params);
+
+        return self::appendHappFragmentOptions("vless://{$uuid}@{$host}:{$port}?{$query}#{$name}\r\n", $server);
     }
 
-    protected function splitShareAuthority($authority)
+    // ==================== Trojan ====================
+
+    public static function buildTrojan($password, $server)
     {
-        if ($authority === '') {
-            return null;
+        $tlsSettings = $server['tls_settings'] ?? [];
+        $networkSettings = $server['network_settings'] ?? $server['networkSettings'] ?? [];
+        $network = $server['network'] ?? 'tcp';
+
+        $params = [
+            'security' => 'tls',
+            'allowInsecure' => $server['allow_insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0),
+            'sni' => $server['server_name'] ?? ($tlsSettings['server_name'] ?? ''),
+            'type' => $network,
+        ];
+
+        if (isset($tlsSettings['fingerprint']) && !empty($tlsSettings['fingerprint'])) {
+            $params['fp'] = $tlsSettings['fingerprint'];
         }
 
-        $userinfo = null;
-        $hostPort = $authority;
-        $atPosition = strrpos($authority, '@');
-        if ($atPosition !== false) {
-            $userinfo = substr($authority, 0, $atPosition);
-            $hostPort = substr($authority, $atPosition + 1);
+        if ($network === 'ws') {
+            $params['path'] = $networkSettings['path'] ?? '';
+            $params['host'] = $networkSettings['headers']['Host'] ?? ($networkSettings['host'] ?? '');
+        } elseif ($network === 'grpc') {
+            $params['serviceName'] = $networkSettings['serviceName'] ?? '';
         }
 
-        if ($hostPort === '') {
-            return null;
-        }
+        $host = Helper::formatHost($server['host']);
+        $port = $server['port'];
+        $name = rawurlencode($server['name']);
+        $query = http_build_query($params);
 
-        $host = $hostPort;
-        $port = null;
+        return self::appendHappFragmentOptions("trojan://{$password}@{$host}:{$port}?{$query}#{$name}\r\n", $server);
+    }
 
-        if (strpos($hostPort, '[') === 0) {
-            $endBracketPosition = strpos($hostPort, ']');
-            if ($endBracketPosition === false) {
-                return null;
-            }
+    // ==================== Shadowsocks ====================
 
-            $host = substr($hostPort, 0, $endBracketPosition + 1);
-            $remainder = substr($hostPort, $endBracketPosition + 1);
-            if ($remainder !== '' && strpos($remainder, ':') === 0) {
-                $port = substr($remainder, 1);
-            }
+    public static function buildShadowsocks($uuid, $server)
+    {
+        $cipher = $server['cipher'];
+        if (strpos($cipher, '2022-blake3') !== false) {
+            $length = $cipher === '2022-blake3-aes-128-gcm' ? 16 : 32;
+            $serverKey = Helper::getServerKey($server['created_at'], $length);
+            $userKey = Helper::uuidToBase64($uuid, $length);
+            $password = "{$serverKey}:{$userKey}";
         } else {
-            $colonPosition = strrpos($hostPort, ':');
-            if ($colonPosition !== false) {
-                $host = substr($hostPort, 0, $colonPosition);
-                $port = substr($hostPort, $colonPosition + 1);
-            }
+            $password = $uuid;
         }
 
-        if ($host === '') {
-            return null;
+        $name = rawurlencode($server['name']);
+        $encoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode("{$cipher}:{$password}"));
+        $host = Helper::formatHost($server['host']);
+        $port = $server['port'];
+
+        $uri = "ss://{$encoded}@{$host}:{$port}";
+
+        if (isset($server['obfs']) && $server['obfs'] === 'http') {
+            $uri .= "?plugin=obfs-local;obfs=http;obfs-host={$server['obfs-host']};path={$server['obfs-path']}";
+        } elseif (($server['network'] ?? null) === 'http' && isset($server['network_settings']['Host'])) {
+            $path = $server['network_settings']['path'] ?? '/';
+            $uri .= "?plugin=obfs-local;obfs=tls;obfs-host={$server['network_settings']['Host']};path={$path}";
         }
 
-        return [
-            'userinfo' => $userinfo !== '' ? $userinfo : null,
-            'host' => $host,
-            'port' => $port !== '' ? $port : null,
+        return self::appendHappFragmentOptions("{$uri}#{$name}\r\n", $server);
+    }
+
+    // ==================== Hysteria (v1) ====================
+
+    public static function buildHysteria($password, $server)
+    {
+        // Happ only supports Hysteria2 (hy2:// scheme)
+        // Convert Hysteria v1 to v2 format if possible, skip v1
+        if (($server['version'] ?? 1) == 2) {
+            return self::buildHysteria2FromLegacy($password, $server);
+        }
+        // Hysteria v1 is not supported by Happ, skip
+        return '';
+    }
+
+    // ==================== Hysteria2 ====================
+
+    public static function buildHysteria2($password, $server)
+    {
+        $tlsSettings = $server['tls_settings'] ?? [];
+        $host = Helper::formatHost($server['host']);
+        $name = Helper::encodeURIComponent($server['name']);
+
+        $parts = explode(',', $server['port']);
+        $firstPort = strpos($parts[0], '-') !== false ? explode('-', $parts[0])[0] : $parts[0];
+
+        $insecure = $tlsSettings['allow_insecure'] ?? 0;
+        $sni = $tlsSettings['server_name'] ?? '';
+
+        $uri = "hy2://{$password}@{$host}:{$firstPort}/?insecure={$insecure}&sni={$sni}";
+
+        if (!empty($server['obfs']) && !empty($server['obfs_password'])) {
+            $obfsPassword = rawurlencode($server['obfs_password']);
+            $uri .= "&obfs={$server['obfs']}&obfs-password={$obfsPassword}";
+        }
+
+        // Multi-port support (Happ supports mport parameter)
+        if (count($parts) !== 1 || strpos($parts[0], '-') !== false) {
+            $uri .= "&mport=" . rawurlencode($server['mport'] ?? $server['port']);
+        }
+
+        return self::appendHappFragmentOptions("{$uri}#{$name}\r\n", $server);
+    }
+
+    private static function buildHysteria2FromLegacy($password, $server)
+    {
+        $host = Helper::formatHost($server['host']);
+        $name = Helper::encodeURIComponent($server['name']);
+
+        $parts = explode(',', $server['port']);
+        $firstPort = strpos($parts[0], '-') !== false ? explode('-', $parts[0])[0] : $parts[0];
+
+        $uri = "hy2://{$password}@{$host}:{$firstPort}/?insecure={$server['insecure']}&sni={$server['server_name']}";
+
+        if (!empty($server['obfs']) && !empty($server['obfs_password'])) {
+            $obfsPassword = rawurlencode($server['obfs_password']);
+            $uri .= "&obfs={$server['obfs']}&obfs-password={$obfsPassword}";
+        }
+
+        if (count($parts) !== 1 || strpos($parts[0], '-') !== false) {
+            $uri .= "&mport=" . rawurlencode($server['mport'] ?? $server['port']);
+        }
+
+        return self::appendHappFragmentOptions("{$uri}#{$name}\r\n", $server);
+    }
+
+    // ==================== TUIC ====================
+
+    public static function buildTuic($password, $server)
+    {
+        // TUIC is not natively supported by Happ
+        // Convert to a compatible comment line for reference
+        return '';
+    }
+
+    // ==================== AnyTLS ====================
+
+    public static function buildAnytls($password, $server)
+    {
+        // Happ does not natively support anytls:// scheme
+        // AnyTLS may be handled via xray-core internally
+        // Output as standard URI for forward compatibility
+        $tlsSettings = $server['tls_settings'] ?? [];
+        $params = [
+            'type' => $server['network'] ?? 'tcp',
+            'insecure' => $server['insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0),
+            'fp' => $tlsSettings['fingerprint'] ?? 'chrome',
         ];
+
+        if (isset($server['server_name']) || isset($tlsSettings['server_name'])) {
+            $params['sni'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
+        }
+
+        if (isset($server['tls']) && $server['tls'] == 2) {
+            $params['security'] = 'reality';
+            $params['pbk'] = $tlsSettings['public_key'] ?? '';
+            $params['sid'] = $tlsSettings['short_id'] ?? '';
+        }
+
+        $host = Helper::formatHost($server['host']);
+        $port = $server['port'];
+        $name = Helper::encodeURIComponent($server['name']);
+
+        if (isset($server['network']) && isset($server['network_settings'])) {
+            self::applyNetworkSettings($server, $params);
+        }
+
+        $query = http_build_query($params);
+        return self::appendHappFragmentOptions("anytls://{$password}@{$host}:{$port}/?{$query}#{$name}\r\n", $server);
     }
 
-    protected function buildShareUri(array $parts, array $query = [])
+    // ==================== Network Settings Helper ====================
+
+    private static function applyNetworkSettings($server, &$params)
     {
-        $uri = $parts['scheme'] . '://';
-        if ($parts['userinfo'] !== null && $parts['userinfo'] !== '') {
-            $uri .= $parts['userinfo'] . '@';
+        $network = $server['network'] ?? 'tcp';
+        $settings = $server['network_settings'] ?? $server['networkSettings'] ?? [];
+
+        switch ($network) {
+            case 'tcp':
+                $header = $settings['header'] ?? [];
+                if (isset($header['type']) && $header['type'] === 'http') {
+                    $params['headerType'] = 'http';
+                    $params['host'] = $header['request']['headers']['Host'][0] ?? '';
+                    $params['path'] = $header['request']['path'][0] ?? '';
+                }
+                break;
+            case 'ws':
+                $params['path'] = $settings['path'] ?? '';
+                $params['host'] = $settings['headers']['Host'] ?? '';
+                break;
+            case 'grpc':
+                $params['serviceName'] = $settings['serviceName'] ?? '';
+                break;
+            case 'kcp':
+                $params['headerType'] = $settings['header']['type'] ?? 'none';
+                if (isset($settings['seed'])) {
+                    $params['seed'] = $settings['seed'];
+                }
+                break;
+            case 'httpupgrade':
+                $params['path'] = $settings['path'] ?? '';
+                $params['host'] = $settings['host'] ?? '';
+                break;
+            case 'xhttp':
+                $params['path'] = $settings['path'] ?? '';
+                $params['host'] = $settings['host'] ?? '';
+                $params['mode'] = $settings['mode'] ?? 'auto';
+                if (isset($settings['extra'])) {
+                    $params['extra'] = json_encode($settings['extra'], JSON_UNESCAPED_SLASHES);
+                }
+                break;
         }
-
-        $uri .= $this->formatUriHost($parts['host']);
-
-        if ($parts['port'] !== null && $parts['port'] !== '') {
-            $uri .= ':' . $parts['port'];
-        }
-
-        $queryString = $this->buildQueryString($query);
-        if ($queryString !== '') {
-            $uri .= '?' . $queryString;
-        }
-
-        $fragment = $this->normalizeFragment($parts['fragment']);
-        if ($fragment !== null) {
-            $uri .= '#' . $fragment;
-        }
-
-        return $uri;
     }
 
-    protected function parseQueryString($queryString)
+    private static function appendHappFragmentOptions($uri, array $server = [])
     {
-        $query = [];
-        if ($queryString === null || $queryString === '') {
-            return $query;
+        $line = rtrim($uri, "\r\n");
+        if (strpos($line, '#') === false) {
+            return $uri;
         }
 
-        foreach (explode('&', $queryString) as $segment) {
-            if ($segment === '') {
-                continue;
-            }
-
-            $pair = explode('=', $segment, 2);
-            $key = rawurldecode($pair[0]);
-            $value = isset($pair[1]) ? rawurldecode($pair[1]) : '';
-
-            if ($key === '') {
-                continue;
-            }
-
-            $query[$key] = $value;
+        $uriParams = [];
+        $metaParams = [];
+        $fragmentLength = trim((string) config('v2board.app_fragment_length', ''));
+        $fragmentInterval = trim((string) config('v2board.app_fragment_interval', ''));
+        $fragmentPackets = trim((string) config('v2board.app_fragment_packets', ''));
+        if ((int) config('v2board.app_fragment_enable', 0) === 1 && $fragmentLength !== '' && $fragmentInterval !== '' && $fragmentPackets !== '') {
+            $uriParams['fragment'] = "{$fragmentLength},{$fragmentInterval},{$fragmentPackets}";
         }
 
-        return $query;
-    }
-
-    protected function buildQueryString(array $query)
-    {
-        $filteredQuery = [];
-        foreach ($query as $key => $value) {
-            if ($key === '' || $value === null || $value === '') {
-                continue;
-            }
-
-            $filteredQuery[$key] = $value;
+        $resolveAddress = trim((string) config('v2board.app_resolve_address', ''));
+        $host = trim((string) config('v2board.app_host', ''));
+        if ($resolveAddress !== '') {
+            $uriParams['resolve-address'] = $resolveAddress;
+        }
+        if ($host !== '') {
+            $uriParams['host'] = $host;
+        }
+        if ((int) config('v2board.app_insecure', 0) === 1) {
+            $uriParams['insecure'] = '1';
+        }
+        if (!empty($server['happ_server_description'])) {
+            $metaParams['serverDescription'] = base64_encode($server['happ_server_description']);
         }
 
-        return http_build_query($filteredQuery, '', '&', PHP_QUERY_RFC3986);
-    }
-
-    // ========================================
-    // Normalization Helpers
-    // ========================================
-
-    protected function normalizeTransportType($type)
-    {
-        if (!is_string($type) || $type === '') {
-            return $type;
+        if (empty($uriParams) && empty($metaParams)) {
+            return $uri;
         }
 
-        return strtolower($type) === 'splithttp' ? 'xhttp' : $type;
-    }
+        $parts = explode('#', $line, 2);
+        $base = $parts[0];
+        $title = $parts[1];
 
-    protected function normalizeSniHost($host)
-    {
-        if (!is_string($host) || $host === '') {
-            return null;
+        if (!empty($uriParams)) {
+            $base .= (strpos($base, '?') === false ? '?' : '&')
+                . http_build_query($uriParams, '', '&', PHP_QUERY_RFC3986);
         }
 
-        return trim($host, '[]');
-    }
-
-    protected function normalizeBase64Payload($payload)
-    {
-        $payload = trim((string) $payload);
-        $payload = str_replace(['-', '_'], ['+', '/'], $payload);
-        $padding = strlen($payload) % 4;
-        if ($padding !== 0) {
-            $payload .= str_repeat('=', 4 - $padding);
+        $line = $base . '#' . $title;
+        if (!empty($metaParams)) {
+            $line .= '?' . http_build_query($metaParams, '', '&', PHP_QUERY_RFC3986);
         }
 
-        return $payload;
-    }
-
-    protected function normalizeFragment($fragment)
-    {
-        if ($fragment === null) {
-            return null;
-        }
-
-        $fragment = $this->sanitizeMultilineText($fragment);
-
-        return $fragment !== null ? $fragment : null;
-    }
-
-    protected function normalizeRawShareUri($baseUri)
-    {
-        $fragmentPosition = strpos($baseUri, '#');
-        if ($fragmentPosition === false) {
-            return $baseUri;
-        }
-
-        $prefix = substr($baseUri, 0, $fragmentPosition);
-        $fragment = $this->normalizeFragment(substr($baseUri, $fragmentPosition + 1));
-
-        return $fragment === null ? $prefix : $prefix . '#' . $fragment;
-    }
-
-    protected function normalizeTimestamp($value)
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $timestamp = (int) $value;
-        if ($timestamp > self::MILLISECOND_TIMESTAMP_THRESHOLD) {
-            $timestamp = (int) floor($timestamp / 1000);
-        }
-
-        return $timestamp > 0 ? $timestamp : null;
-    }
-
-    // ========================================
-    // Options & Config Helpers
-    // ========================================
-
-    protected function getFirstOption(array $keys)
-    {
-        foreach ($keys as $key) {
-            if (!array_key_exists($key, $this->options)) {
-                continue;
-            }
-
-            $value = $this->options[$key];
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            return $value;
-        }
-
-        return null;
-    }
-
-    protected function getAllowInsecureOption()
-    {
-        if (array_key_exists('allow_insecure', $this->options)) {
-            return (bool) $this->options['allow_insecure'];
-        }
-
-        if (array_key_exists('allowInsecure', $this->options)) {
-            return (bool) $this->options['allowInsecure'];
-        }
-
-        return null;
-    }
-
-    // ========================================
-    // Header Builders
-    // ========================================
-
-    protected function getSubscriptionName()
-    {
-        $name = $this->sanitizeMultilineText(
-            $this->options['profile_title']
-            ?? $this->options['subscription_name']
-            ?? config('v2board.app_name', 'V2Board')
-        );
-
-        if ($name === null) {
-            return 'V2Board';
-        }
-
-        return explode("\n", $name, 2)[0];
-    }
-
-    protected function getProfileTitleHeader($appName)
-    {
-        $title = $this->getPlainProfileTitle($appName);
-        if ($title === null) {
-            return null;
-        }
-
-        $description = $this->getProfileDescriptionText();
-        if (!empty($this->options['profile_title_base64'])) {
-            $payload = $title;
-            if ($description !== null) {
-                $payload .= "\n" . $description;
-            }
-
-            return 'base64:' . base64_encode($payload);
-        }
-
-        return $title;
-    }
-
-    protected function getPlainProfileTitle($appName)
-    {
-        $title = $this->sanitizeMultilineText($appName);
-        if ($title === null) {
-            return null;
-        }
-
-        $title = explode("\n", $title, 2)[0];
-
-        return $this->limitText($title, self::MAX_PROFILE_TITLE_LENGTH);
-    }
-
-    protected function getProfileDescriptionText()
-    {
-        return $this->sanitizeMultilineText($this->options['profile_description'] ?? null);
-    }
-
-    protected function getProfileDescriptionHeader()
-    {
-        $description = $this->getProfileDescriptionText();
-        if ($description === null || !empty($this->options['profile_title_base64'])) {
-            return null;
-        }
-
-        if (!empty($this->options['profile_description_base64']) || strpos($description, "\n") !== false) {
-            return 'base64:' . base64_encode($description);
-        }
-
-        return $this->sanitizeHeaderValue($description);
-    }
-
-    protected function getUserInfoHeader($user)
-    {
-        $parts = [];
-
-        if (isset($user['u'])) {
-            $parts[] = 'upload=' . (int) $user['u'];
-        }
-        if (isset($user['d'])) {
-            $parts[] = 'download=' . (int) $user['d'];
-        }
-        if (isset($user['transfer_enable'])) {
-            $parts[] = 'total=' . (int) $user['transfer_enable'];
-        }
-
-        $expire = $this->normalizeTimestamp($user['expired_at'] ?? null);
-        if ($expire !== null) {
-            $parts[] = 'expire=' . $expire;
-        }
-
-        if (empty($parts)) {
-            return '0';
-        }
-
-        return implode(';', $parts);
-    }
-
-    protected function getAnnounceHeader($announce)
-    {
-        $announce = $this->normalizeAnnounceText($announce);
-        if ($announce === null) {
-            return null;
-        }
-
-        if (!empty($this->options['announce_base64']) || strpos($announce, "\n") !== false) {
-            return 'base64:' . base64_encode($announce);
-        }
-
-        return $this->sanitizeHeaderValue($announce);
-    }
-
-    protected function normalizeAnnounceText($announce)
-    {
-        $announce = $this->sanitizeMultilineText($announce);
-        if ($announce === null) {
-            return null;
-        }
-
-        $lines = preg_split("/\n/", $announce);
-        $lines = array_slice($lines, 0, self::MAX_ANNOUNCE_LINES);
-        $announce = implode("\n", $lines);
-
-        return $this->limitText($announce, self::MAX_ANNOUNCE_LENGTH);
-    }
-
-    protected function getProfileUpdateInterval()
-    {
-        $interval = (int) ($this->options['profile_update_interval'] ?? self::DEFAULT_PROFILE_UPDATE_INTERVAL);
-
-        return $interval > 0 ? $interval : self::DEFAULT_PROFILE_UPDATE_INTERVAL;
-    }
-
-    protected function getSortOrderHeader()
-    {
-        $sortOrder = strtolower((string) ($this->options['sort_order'] ?? ''));
-        if (!in_array($sortOrder, self::ALLOWED_SORT_ORDERS, true)) {
-            return null;
-        }
-
-        return $sortOrder;
-    }
-
-    protected function getContentDispositionHeader($appName)
-    {
-        $fileName = $this->getPlainProfileTitle($appName);
-        if ($fileName === null) {
-            return null;
-        }
-
-        $fileName = preg_replace('/[\\\\\\/";]+/', '_', $fileName);
-
-        return 'attachment; filename="' . $fileName . '"';
-    }
-
-    // ========================================
-    // Sanitization Utilities
-    // ========================================
-
-    protected function getUriScheme($uri)
-    {
-        $scheme = parse_url($uri, PHP_URL_SCHEME);
-        if (!is_string($scheme) || $scheme === '') {
-            return null;
-        }
-
-        return strtolower($scheme);
-    }
-
-    protected function formatUriHost($host)
-    {
-        if (!is_string($host) || $host === '') {
-            return $host;
-        }
-
-        if (strpos($host, ':') !== false && strpos($host, '[') !== 0) {
-            return '[' . $host . ']';
-        }
-
-        return $host;
-    }
-
-    protected function looksLikeUrl($value)
-    {
-        return is_string($value) && preg_match('/^https?:\/\//i', $value) === 1;
-    }
-
-    protected function sanitizeHeaderValue($value)
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = preg_replace('/[\r\n]+/', ' ', (string) $value);
-        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value);
-        $value = trim($value);
-
-        return $value !== '' ? $value : null;
-    }
-
-    protected function sanitizeMultilineText($value)
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = str_replace(["\r\n", "\r"], "\n", (string) $value);
-        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value);
-        $value = trim($value);
-
-        return $value !== '' ? $value : null;
-    }
-
-    protected function limitText($value, $maxLength)
-    {
-        if ($value === null || $value === '') {
-            return $value;
-        }
-
-        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
-            return mb_strlen($value, 'UTF-8') > $maxLength
-                ? mb_substr($value, 0, $maxLength, 'UTF-8')
-                : $value;
-        }
-
-        return strlen($value) > $maxLength ? substr($value, 0, $maxLength) : $value;
+        return $line . "\r\n";
     }
 }
