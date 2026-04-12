@@ -52,6 +52,16 @@ class ClientController extends Controller
             $class = new General($user, $servers);
             return $class->handle();
         }
+
+        // Handle expired/unavailable users - show expiration message on nodes
+        if (strpos($flag, 'happ') !== false) {
+            $class = new \App\Protocols\Happ($user, []);
+            return $class->handle();
+        }
+        if (strpos($flag, 'incy') !== false) {
+            $class = new \App\Protocols\INCY($user, []);
+            return $class->handle();
+        }
     }
 
     private function setSubscribeInfoToServers(&$servers, $user)
