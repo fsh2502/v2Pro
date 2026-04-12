@@ -82,12 +82,9 @@ class ConfigSave extends FormRequest
         'telegram_channel_id' => '',
         'telegram_discuss_link' => 'nullable|url',
         // app
-        'windows_version' => '',
-        'windows_download_url' => '',
-        'macos_version' => '',
-        'macos_download_url' => '',
-        'android_version' => '',
-        'android_download_url' => '',
+        'app_support_url' => 'nullable|url',
+        'app_site_url' => 'nullable|url',
+        'app_announce' => 'nullable|string|max:200',
         // safe
         'email_whitelist_enable' => 'in:0,1',
         'email_whitelist_suffix' => 'nullable|array',
