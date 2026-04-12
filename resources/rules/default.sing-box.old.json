@@ -6,14 +6,6 @@
                     "any"
                 ],
                 "server": "local"
-            }, 
-            {
-                "clash_mode": "全局代理",
-                "server": "remote"
-            },
-            {
-                "clash_mode": "关闭代理",
-                "server": "local"
             },
             {
                 "rule_set": [
@@ -53,7 +45,7 @@
             "enabled": true
         },
         "clash_api": {
-            "default_mode": "海外代理",
+            "default_mode": "Rule",
             "external_controller": "127.0.0.1:9090",
             "secret": ""
         }
@@ -122,14 +114,6 @@
 				"protocol": "dns",
 				"action": "hijack-dns"
 			},
-			{
-                "clash_mode": "关闭代理",
-                "outbound": "direct"
-            },
-            {
-                "clash_mode": "全局代理",
-                "outbound": "节点选择"
-            },
             {
                 "rule_set": [
                     "geosite-cn","geoip-cn"
