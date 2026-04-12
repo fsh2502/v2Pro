@@ -40,10 +40,13 @@ class Incy
             ->header('profile-title', "base64:{$profileTitle}")
             ->header('content-disposition', 'attachment; filename="' . $appName . '-incy.json"');
 
-        $webPageUrl = (string) config('v2board.app_url', '');
+        $webPageUrl = (string) (config('v2board.app_site_url') ?: config('v2board.app_url', ''));
+        $supportUrl = (string) (config('v2board.app_support_url') ?: $webPageUrl);
         if (!empty($webPageUrl)) {
             $response->header('profile-web-page-url', $webPageUrl);
-            $response->header('support-url', $webPageUrl);
+        }
+        if (!empty($supportUrl)) {
+            $response->header('support-url', $supportUrl);
         }
 
         $customAnnounce = config('v2board.app_announce', 'Lưu ý không được quên bật ứng dụng trước khi dùng mạng, không bật chế độ tiết kiệm pin. Khi mạng bị giật lag, xin hãy chọn máy chủ khác.');
