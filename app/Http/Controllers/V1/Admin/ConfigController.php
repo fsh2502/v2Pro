@@ -148,12 +148,9 @@ class ConfigController extends Controller
                 'telegram_discuss_link' => config('v2board.telegram_discuss_link')
             ],
             'app' => [
-                'windows_version' => config('v2board.windows_version'),
-                'windows_download_url' => config('v2board.windows_download_url'),
-                'macos_version' => config('v2board.macos_version'),
-                'macos_download_url' => config('v2board.macos_download_url'),
-                'android_version' => config('v2board.android_version'),
-                'android_download_url' => config('v2board.android_download_url')
+                'app_support_url' => config('v2board.app_support_url'),
+                'app_site_url' => config('v2board.app_site_url'),
+                'app_announce' => config('v2board.app_announce'),
             ],
             'safe' => [
                 'email_verify' => (int)config('v2board.email_verify', 0),
