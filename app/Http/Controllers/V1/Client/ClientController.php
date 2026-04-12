@@ -59,7 +59,7 @@ class ClientController extends Controller
             return $class->handle();
         }
         if (strpos($flag, 'incy') !== false) {
-            $class = new \App\Protocols\INCY($user, []);
+            $class = new \App\Protocols\Incy($user, []);
             return $class->handle();
         }
     }
