@@ -20,6 +20,10 @@ class Incy
 
     public function handle()
     {
+        if (empty($this->servers)) {
+            return $this->buildExpiredResponse();
+        }
+
         $configs = [];
 
         foreach ($this->servers as $server) {
@@ -612,6 +616,20 @@ class Incy
         }
 
         return $notice;
+    }
+
+    private function buildExpiredResponse()
+    {
+        $user = $this->user;
+        $appName = config('v2board.app_name', 'V2Board');
+        $expiredName = rawurlencode('⛔Gói đã hết hạn sử dụng' );
+        $body = "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:443?security=tls&type=tcp&sni=expired#{$expiredName}\r\n";
+
+        return response($body, 200)
+            ->header('Content-Type', 'text/plain; charset=UTF-8')
+            ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
+            ->header('profile-update-interval', '2')
+            ->header('content-disposition', "attachment; filename*=UTF-8''" . rawurlencode($appName));
     }
 
     private function removeEmpty(array $data): array
