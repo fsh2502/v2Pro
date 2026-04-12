@@ -82,7 +82,7 @@ class Happ
             'Content-Type' => 'text/plain; charset=UTF-8',
             'Content-Disposition' => "attachment; filename*=UTF-8''" . rawurlencode($appName),
             'profile-title' => $appName,
-            'profile-update-interval' => '24',
+            'profile-update-interval' => '2',
             'subscription-userinfo' => "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$expireAt}",
         ];
 
