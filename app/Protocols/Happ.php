@@ -22,14 +22,26 @@ class Happ
         $servers = $this->servers;
         $body = '';
         $headers = $this->buildHeaders($user);
-        $isExpired = isset($user['expired_at']) && $user['expired_at'] !== null && (int) $user['expired_at'] <= time();
+
+        if (empty($servers)) {
+            $expiredName = rawurlencode('⛔Gói đã hết hạn sử dụng');
+            $body = "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:443?security=tls&type=tcp&sni=expired#{$expiredName}\r\n";
+
+            if (config('v2board.happ_encryption_enable', 0)) {
+                $key = substr(md5($user['uuid']), 0, 16);
+                $iv = substr(md5(config('app.key')), 0, 16);
+                $body = openssl_encrypt($body, 'aes-128-cbc', $key, 0, $iv);
+                $headers['encryption'] = 'aes-128-cbc';
+                $headers['encryption-key'] = $key;
+                $headers['encryption-iv'] = $iv;
+            }
+
+            return $this->buildResponse($body, $headers);
+        }
 
         foreach ($servers as $server) {
             if (($server['type'] ?? null) === 'v2node') {
                 $server['type'] = $server['protocol'];
-            }
-            if ($isExpired) {
-                $server['happ_server_description'] = 'Gói đã hết hạn';
             }
 
             switch ($server['type']) {
@@ -82,7 +94,7 @@ class Happ
             'Content-Type' => 'text/plain; charset=UTF-8',
             'Content-Disposition' => "attachment; filename*=UTF-8''" . rawurlencode($appName),
             'profile-title' => $appName,
-            'profile-update-interval' => '2',
+            'profile-update-interval' => '24',
             'subscription-userinfo' => "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$expireAt}",
         ];
 
