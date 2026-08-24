@@ -10,7 +10,7 @@ const CONFIG = {
   ALERT_COOLDOWN: 1 * 60 * 60 * 1000,
   ADMIN_PASSWORD: ".",
   // Trang xem phim: dùng cùng domain thì để rỗng "", hoặc điền URL đầy đủ VD: "https://your-site.com/xem-phim"
-  XEM_PHIM_BASE: "/xem-phim",
+  XEM_PHIM_BASE: "",
 };
 
 export default {
@@ -525,15 +525,9 @@ async function fetchConfigFromOrigin(request, originalUrl, ua) {
     const response = await fetch(targetUrl, { method: request.method, headers: newHeaders });
 
     const resHeaders = new Headers(response.headers);
-    let profileTitle = CONFIG.PROFILE_NAME;
-    if (ua.includes("happ")) {
-      const d = new Date(new Date().getTime() + 9 * 3600 * 1000);
-      profileTitle +=
-        " " +
-        `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+    if (!resHeaders.get("profile-title")) {
+      resHeaders.set("profile-title", CONFIG.PROFILE_NAME);
     }
-
-    resHeaders.set("profile-title", profileTitle);
     resHeaders.set("profile-update-interval", "2");
     resHeaders.set("support-url", CONFIG.SUPPORT_URL);
     resHeaders.set("profile-web-page-url", CONFIG.SUPPORT_URL);
