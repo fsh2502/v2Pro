@@ -70719,7 +70719,8 @@
           , L = n("yWgo")
           , A = n("Oa6W")
           , P = n("v32e")
-          , j = n("X0q5");
+          , j = n("X0q5")
+          , Q = n.n(n("D1Df"));
         class M extends g.a.Component {
             constructor(e) {
                 super(e),
@@ -70836,6 +70837,42 @@
                     },
                     okText: "\u786e\u5b9a",
                     cancelText: "\u53d6\u6d88"
+                })
+            }
+            showSubscriptionQr(e) {
+                e && e.subscribe_url && p["a"].info({
+                    title: "M\u00e3 QR subscription",
+                    className: "v2board-subscription-qr-modal",
+                    centered: !0,
+                    width: 380,
+                    icon: null,
+                    okText: "\u0110\u00f3ng",
+                    content: g.a.createElement("div", {
+                        className: "v2board-subscription-qr"
+                    }, g.a.createElement("div", {
+                        className: "v2board-subscription-qr-code"
+                    }, g.a.createElement(Q.a, {
+                        value: e.subscribe_url,
+                        size: 220,
+                        level: "M",
+                        includeMargin: !0,
+                        renderAs: "svg"
+                    })), g.a.createElement("div", {
+                        className: "v2board-subscription-qr-user"
+                    }, g.a.createElement(u["a"], {
+                        type: "user"
+                    }), " ", e.email), g.a.createElement("p", {
+                        className: "v2board-subscription-qr-hint"
+                    }, "M\u1edf \u1ee9ng d\u1ee5ng v\u00e0 qu\u00e9t m\u00e3 \u0111\u1ec3 th\u00eam subscription nhanh."), g.a.createElement("div", {
+                        className: "v2board-subscription-qr-warning"
+                    }, g.a.createElement(u["a"], {
+                        type: "safety-certificate"
+                    }), g.a.createElement("span", null, "M\u00e3 n\u00e0y ch\u1ee9a li\u00ean k\u1ebft ri\u00eang c\u1ee7a ng\u01b0\u1eddi d\u00f9ng. Kh\u00f4ng chia s\u1ebb c\u00f4ng khai.")), g.a.createElement(s["a"], {
+                        block: !0,
+                        onClick: ()=>Object(L["a"])(e.subscribe_url)
+                    }, g.a.createElement(u["a"], {
+                        type: "copy"
+                    }), " Sao ch\u00e9p URL"))
                 })
             }
             delUser(e) {
@@ -70989,6 +71026,10 @@
                             }, g.a.createElement(u["a"], {
                                 type: "copy"
                             }), " \u590d\u5236\u8ba2\u9605URL")), g.a.createElement(c["a"].Item, null, g.a.createElement("a", {
+                                onClick: ()=>this.showSubscriptionQr(t)
+                            }, g.a.createElement(u["a"], {
+                                type: "qrcode"
+                            }), " Hi\u1ec7n m\u00e3 QR")), g.a.createElement(c["a"].Item, null, g.a.createElement("a", {
                                 onClick: ()=>this.resetSecret(t)
                             }, g.a.createElement(u["a"], {
                                 type: "reload"
@@ -71198,6 +71239,12 @@
                 }, g.a.createElement(u["a"], {
                     type: "copy"
                 }), " \u590d\u5236\u8ba2\u9605URL")), g.a.createElement("li", {
+                    className: "ant-dropdown-menu-item"
+                }, g.a.createElement("a", {
+                    onClick: ()=>this.showSubscriptionQr(this.record)
+                }, g.a.createElement(u["a"], {
+                    type: "qrcode"
+                }), " Hi\u1ec7n m\u00e3 QR")), g.a.createElement("li", {
                     className: "ant-dropdown-menu-item"
                 }, g.a.createElement("a", {
                     style: {

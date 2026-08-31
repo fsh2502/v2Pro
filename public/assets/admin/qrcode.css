@@ -1,0 +1,71 @@
+.v2board-subscription-qr {
+    padding-top: 4px;
+    text-align: center;
+}
+
+.v2board-subscription-qr-modal .ant-modal-confirm-title {
+    display: block;
+    text-align: center;
+}
+
+.v2board-subscription-qr-modal .ant-modal-confirm-btns {
+    float: none;
+    text-align: center;
+}
+
+.v2board-subscription-qr-code {
+    display: inline-flex;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(23, 43, 77, .08);
+}
+
+.v2board-subscription-qr-code svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.v2board-subscription-qr-user {
+    margin-top: 14px;
+    overflow: hidden;
+    color: #172b4d;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.v2board-subscription-qr-hint {
+    margin: 6px 0 12px;
+    color: #6b778c;
+    font-size: 13px;
+}
+
+.v2board-subscription-qr-warning {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    color: #7a4b00;
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: left;
+    background: #fff7e6;
+    border: 1px solid #ffe7ba;
+    border-radius: 6px;
+}
+
+.v2board-subscription-qr-warning .anticon {
+    margin-top: 2px;
+    color: #d48806;
+}
+
+@media (max-width: 480px) {
+    .v2board-subscription-qr-code svg {
+        width: 190px;
+        height: 190px;
+    }
+}
