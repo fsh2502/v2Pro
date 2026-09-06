@@ -214,7 +214,12 @@ class ServerService
             }
             $server = $certificates->attach($v2node[$key]->toArray(), $v2node[$v['parent_id']] ?? $v);
             if (is_array($server['tls_settings'] ?? null)) {
-                unset($server['tls_settings']['dns_env'], $server['tls_settings']['key_file'], $server['tls_settings']['cert_file']);
+                unset(
+                    $server['tls_settings']['dns_env'],
+                    $server['tls_settings']['key_file'],
+                    $server['tls_settings']['cert_file'],
+                    $server['tls_settings']['terminate_tls_at_proxy']
+                );
             }
             $servers[] = $server;
         }

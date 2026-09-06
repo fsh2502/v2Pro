@@ -104680,7 +104680,8 @@
                     provider: "",
                     dns_env: "",
                     reject_unknown_sni: "0",
-                    allow_insecure: "0"
+                    allow_insecure: "0",
+                    terminate_tls_at_proxy: "0"
                 }),
                 this.state = {
                     tls: this.props.tls,
@@ -104719,7 +104720,9 @@
                     key: this.props.nodeId,
                     nodeId: this.props.nodeId,
                     enabled: e.certificate_pinning === undefined || Number(e.certificate_pinning) !== 0,
-                    onChange: value=>this.change("certificate_pinning", value)
+                    onChange: value=>this.change("certificate_pinning", value),
+                    proxyTermination: Number(e.terminate_tls_at_proxy) === 1,
+                    onProxyTerminationChange: value=>this.change("terminate_tls_at_proxy", value)
                 }), tls == 1 && cert_apply && y.a.createElement("div", {
                     className: "form-group"
                 }, y.a.createElement("label", null, "\u8bc1\u4e66\u6a21\u5f0fCert Mode"), y.a.createElement(N["a"], {
@@ -104735,6 +104738,8 @@
                 }, "HTTP\u7533\u8bf7"), y.a.createElement(N["a"].Option, {
                     value: "dns"
                 }, "DNS\u7533\u8bf7"), y.a.createElement(N["a"].Option, {
+                    value: "file"
+                }, "Existing File"), y.a.createElement(N["a"].Option, {
                     value: "none"
                 }, "\u65e0\u8bc1\u4e66(\u5173\u95edTLS)"))), e.cert_mode == "dns" && cert_apply && y.a.createElement("div", {
                     className: "form-group"

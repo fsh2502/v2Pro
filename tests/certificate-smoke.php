@@ -49,6 +49,9 @@ namespace {
     $changed = $node;
     $changed['tls_settings']['cert_file'] = '/etc/v2node/new.cer';
     check($service->snapshot($changed) === [], 'Configuration changes hide stale pins');
+    $proxyTerminated = $node;
+    $proxyTerminated['tls_settings']['terminate_tls_at_proxy'] = '1';
+    check($service->snapshot($proxyTerminated) === [], 'Proxy TLS mode changes certificate revision');
     rejects(function () use ($service, $changed, $report) { $service->report($changed, $report); }, 409);
     rejects(function () use ($service, $node, $report) { $service->report($node, array_replace($report, ['tls_public_key_sha256' => 'invalid'])); }, 422);
     check($service->snapshot($node)['sha256'] === $sha, 'Bad report retains last good pin');

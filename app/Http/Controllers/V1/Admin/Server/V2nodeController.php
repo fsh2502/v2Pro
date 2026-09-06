@@ -89,6 +89,22 @@ class V2nodeController extends Controller
             }
             $params['network_settings'] = $ns;
         }
+        if (isset($params['tls_settings']['terminate_tls_at_proxy'])) {
+            $terminateAtProxy = filter_var(
+                $params['tls_settings']['terminate_tls_at_proxy'],
+                FILTER_VALIDATE_BOOLEAN
+            );
+            if ($terminateAtProxy && ((int)$params['tls'] !== 1 || $params['network'] !== 'ws')) {
+                abort(422, 'TLS at Nginx requires ordinary TLS and WebSocket transport.');
+            }
+            if ($terminateAtProxy && empty($params['tls_settings']['cert_mode'])) {
+                abort(422, 'TLS at Nginx requires a certificate mode.');
+            }
+            if ($terminateAtProxy && $params['tls_settings']['cert_mode'] === 'none') {
+                abort(422, 'TLS at Nginx requires a certificate file for fingerprint reporting.');
+            }
+            $params['tls_settings']['terminate_tls_at_proxy'] = $terminateAtProxy ? '1' : '0';
+        }
         if ($params['network'] != 'tcp' && isset($params['encryption']) && $params['encryption'] != 'mlkem768x25519plus') {
             $params['flow'] = null;
         }

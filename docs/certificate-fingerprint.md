@@ -113,6 +113,26 @@ Với CDN/proxy kết thúc TLS, chứng chỉ client thấy có thể khác ch�
 Khi đó tắt **Ghim chứng chỉ tự động trong subscription** ở node tương ứng.
 Sau khi cert đổi, client cần tải lại subscription để nhận pin mới.
 
+### Nhiều domain WSS dùng chung cổng 443
+
+Khi Nginx trên VPS trực tiếp kết thúc TLS bằng chứng chỉ tự ký, vẫn giữ **TLS** bật
+trong v2Pro để subscription xuất `wss://` và cổng công khai `443`. Chọn WebSocket,
+bật **TLS tại Nginx (backend WebSocket thường)**, đặt `listen_ip=127.0.0.1` và cho
+mỗi node một `server_port` nội bộ riêng. Cert File và Key File trong v2Pro phải là
+đúng hai file mà virtual host Nginx của domain đó sử dụng; v2node đọc cặp file này
+để báo vân tay nhưng không bật TLS trên listener nội bộ.
+
+Script nhanh nằm trong v2nodePro:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fsh2502/v2nodePro/main/script/setup-wss-proxy.sh \
+  -o /tmp/setup-wss-proxy.sh && \
+bash /tmp/setup-wss-proxy.sh node-a.example.com /node-a 10001
+```
+
+Chạy lại với domain, path và cổng nội bộ khác để thêm website tiếp theo. Nginx chọn
+đúng chứng chỉ theo SNI và chuyển từng WebSocket path đến listener loopback tương ứng.
+
 ## Áp dụng và triển khai
 
 Thay đổi panel nằm trực tiếp trong repo v2Pro này. Thay đổi node nằm trong

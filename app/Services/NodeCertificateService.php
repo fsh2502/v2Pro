@@ -32,7 +32,8 @@ class NodeCertificateService
             $node['id'], $node['created_at'], (int)$node['tls'],
             $node['protocol'], (int)$node['server_port'],
             $tls['cert_mode'] ?? '', $tls['cert_file'] ?? '',
-            $tls['key_file'] ?? '', $tls['server_name'] ?? ''
+            $tls['key_file'] ?? '', $tls['server_name'] ?? '',
+            !empty($tls['terminate_tls_at_proxy']) ? 1 : 0
         ]));
     }
 

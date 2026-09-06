@@ -56,7 +56,14 @@
                     h('label', { style: { display: 'block', marginTop: 12 } },
                         h('input', { type: 'checkbox', checked: this.props.enabled, onChange: event => this.props.onChange(event.target.checked ? '1' : '0') }),
                         ' Ghim chứng chỉ tự động trong subscription'),
-                    h('small', null, 'Tắt ghim nếu client kết nối qua CDN hoặc proxy kết thúc TLS bằng chứng chỉ khác. Thay đổi có hiệu lực sau khi lưu node.')
+                    h('small', null, 'Tắt ghim nếu client kết nối qua CDN hoặc proxy kết thúc TLS bằng chứng chỉ khác. Thay đổi có hiệu lực sau khi lưu node.'),
+                    h('label', { style: { display: 'block', marginTop: 12 } },
+                        h('input', {
+                            type: 'checkbox', checked: this.props.proxyTermination,
+                            onChange: event => this.props.onProxyTerminationChange(event.target.checked ? '1' : '0')
+                        }),
+                        ' TLS tại Nginx (backend WebSocket thường)'),
+                    h('small', null, 'Giữ TLS/WSS trong subscription, nhưng v2node chỉ nghe WS nội bộ. Nginx phải dùng đúng Cert File và Key File bên dưới.')
                 );
             }
         };

@@ -21,7 +21,7 @@ req.d=(o,k,get)=>Object.defineProperty(o,k,{enumerable:true,get});
 req.n=m=>{const get=m&&m.__esModule?()=>m.default:()=>m;req.d(get,'a',get);return get;};
 req.r=o=>Object.defineProperty(o,'__esModule',{value:true});
 const React=req('q1tI'), ReactDOM=req('i8i4'), Certificate=window.createNodeCertificateComponent(React);
-class Preview extends React.Component {constructor(p){super(p);this.state={enabled:true};}render(){return React.createElement(Certificate,{nodeId:7,enabled:this.state.enabled,onChange:value=>this.setState({enabled:value==='1'})});}}
+class Preview extends React.Component {constructor(p){super(p);this.state={enabled:true,proxyTermination:false};}render(){return React.createElement(Certificate,{nodeId:7,enabled:this.state.enabled,onChange:value=>this.setState({enabled:value==='1'}),proxyTermination:this.state.proxyTermination,onProxyTerminationChange:value=>this.setState({proxyTermination:value==='1'})});}}
 ReactDOM.render(React.createElement(Preview),document.getElementById('root'));
 </script></html>`;
 http.createServer((req, res) => {
