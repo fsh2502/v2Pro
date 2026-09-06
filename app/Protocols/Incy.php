@@ -3,6 +3,7 @@
 namespace App\Protocols;
 
 use App\Utils\Helper;
+use App\Utils\TlsPin;
 
 class Incy
 {
@@ -300,11 +301,11 @@ class Incy
             }
         }
 
-        $tlsSettings = [
+        $tlsSettings = TlsPin::xray([
             'serverName' => $server['server_name'] ?? '',
             'allowInsecure' => !empty($server['insecure']),
             'alpn' => ['h3']
-        ];
+        ], $server);
 
         return [
             'tag' => $server['name'],
@@ -360,6 +361,7 @@ class Incy
                 'fingerprint' => $tlsSettings['fingerprint'] ?? null,
                 'alpn' => $tlsSettings['alpn'] ?? null
             ]);
+            $tlsConfig = TlsPin::xray($tlsConfig, $server);
             if (!empty($tlsConfig)) {
                 $settings['tlsSettings'] = $tlsConfig;
             }

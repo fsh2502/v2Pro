@@ -96,6 +96,7 @@ Node v2nodePro:
 |---|---|---|
 | URI VLESS/VMess/Trojan/AnyTLS dùng Helper, Happ | `pcs`, `vcn`; Happ thêm `pcn` | Certificate SHA256 hex + tên xác thực |
 | Hysteria2 URI, Happ HY2 | `pinSHA256` | Certificate SHA256 hex; giữ lựa chọn `insecure` hiện có |
+| Incy / Xray 26.3.27 | `tlsSettings.pinnedPeerCertSha256`, `verifyPeerCertByName` | Certificate SHA256 hex + tên xác thực; tự bỏ `allowInsecure` khi có pin |
 | Clash Meta, Verge, Nyanpasu/Mihomo | `fingerprint`, `name-cert-verify` | Certificate SHA256 hex |
 | Stash | `server-cert-fingerprint` | Certificate SHA256 hex |
 | sing-box từ 1.13.0, nhận diện bằng User-Agent | `tls.certificate_public_key_sha256` | Mảng SPKI SHA256 Base64 |

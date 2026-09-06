@@ -61,4 +61,20 @@ class TlsPin
         }
         return $proxy;
     }
+
+    public static function xray(array $tls, array $server): array
+    {
+        $pin = self::resolve($server);
+        if ($pin['certificate'] === '') {
+            return $tls;
+        }
+
+        $tls['pinnedPeerCertSha256'] = $pin['certificate'];
+        if ($pin['name'] !== '') {
+            $tls['verifyPeerCertByName'] = $pin['name'];
+        }
+        unset($tls['allowInsecure']);
+
+        return $tls;
+    }
 }

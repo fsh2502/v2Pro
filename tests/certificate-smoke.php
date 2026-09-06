@@ -60,6 +60,26 @@ namespace {
     check($query['pcs'] === $sha && $query['vcn'] === 'node.example.com' && !isset($query['insecure']), 'VLESS subscription pin');
     $vmess = json_decode(base64_decode(substr(trim(\App\Utils\Helper::buildVmessUri($uuid, $server)), 8)), true);
     check($vmess['pcs'] === $sha && !isset($vmess['allowInsecure']), 'VMess JSON pin');
+    $incy = new \App\Protocols\Incy(['uuid' => $uuid], []);
+    $incyStreamMethod = new \ReflectionMethod(\App\Protocols\Incy::class, 'buildStreamSettings');
+    $incyStreamMethod->setAccessible(true);
+    $incyStream = $incyStreamMethod->invoke($incy, $server, true);
+    check($incyStream['tlsSettings']['pinnedPeerCertSha256'] === $sha, 'Incy Xray certificate pin');
+    check($incyStream['tlsSettings']['verifyPeerCertByName'] === 'node.example.com', 'Incy Xray certificate name');
+    check(!isset($incyStream['tlsSettings']['allowInsecure']), 'Incy pin replaces removed allowInsecure');
+    $incyWssServer = $server;
+    $incyWssServer['network'] = 'ws';
+    $incyWssServer['network_settings'] = [
+        'path' => '/node-25',
+        'headers' => ['Host' => 'node.example.com'],
+    ];
+    $incyTrojanMethod = new \ReflectionMethod(\App\Protocols\Incy::class, 'buildTrojanOutbound');
+    $incyTrojanMethod->setAccessible(true);
+    $incyTrojan = $incyTrojanMethod->invoke($incy, $incyWssServer);
+    check($incyTrojan['streamSettings']['security'] === 'tls', 'Incy Trojan WSS enables TLS');
+    check($incyTrojan['streamSettings']['wsSettings']['path'] === '/node-25', 'Incy Trojan WSS path');
+    check($incyTrojan['streamSettings']['wsSettings']['headers']['Host'] === 'node.example.com', 'Incy Trojan WSS host');
+    check($incyTrojan['streamSettings']['tlsSettings']['pinnedPeerCertSha256'] === $sha, 'Incy Trojan WSS certificate pin');
     parse_str(parse_url(trim(\App\Utils\Helper::buildHysteria2Uri($uuid, $server)), PHP_URL_QUERY), $query);
     check($query['pinSHA256'] === $sha && $query['insecure'] === '1', 'HY2 preserves self-signed pin semantics');
     parse_str(parse_url(trim(\App\Protocols\Happ::buildHysteria2($uuid, $server)), PHP_URL_QUERY), $query);
