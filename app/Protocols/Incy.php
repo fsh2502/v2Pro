@@ -53,12 +53,8 @@ class Incy
             $response->header('support-url', $supportUrl);
         }
 
-        $customAnnounce = config('v2board.app_announce', 'Lưu ý không được quên bật ứng dụng trước khi dùng mạng, không bật chế độ tiết kiệm pin. Khi mạng bị giật lag, xin hãy chọn máy chủ khác.');
         $skipNotice = $this->buildSkipNotice();
-        $announce = !empty($customAnnounce) ? $customAnnounce : $skipNotice;
-        if (!empty($announce)) {
-            $response->header('announce', "base64:" . base64_encode($announce));
-        }
+        $response->header('announce', 'base64:' . base64_encode($this->resolveAnnounce($skipNotice)));
 
         return $response;
     }
@@ -618,6 +614,20 @@ class Incy
         return $notice;
     }
 
+    private function resolveAnnounce(string $suffix = ''): string
+    {
+        $customAnnounce = (string) config('v2board.app_announce', '');
+        if (trim($customAnnounce) !== '') {
+            return $customAnnounce;
+        }
+
+        if ($suffix !== '') {
+            $suffix = "\n{$suffix}";
+        }
+
+        return Helper::buildSubscriptionAnnounce($this->user, $suffix);
+    }
+
     private function buildExpiredResponse()
     {
         $user = $this->user;
@@ -629,6 +639,7 @@ class Incy
             ->header('Content-Type', 'text/plain; charset=UTF-8')
             ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
             ->header('profile-update-interval', '2')
+            ->header('announce', 'base64:' . base64_encode($this->resolveAnnounce()))
             ->header('content-disposition', "attachment; filename*=UTF-8''" . rawurlencode($appName));
     }
 

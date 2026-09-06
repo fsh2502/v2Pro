@@ -97,6 +97,23 @@ class Helper
         }
     }
 
+    public static function buildSubscriptionAnnounce($user, $suffix = '')
+    {
+        $usedBytes = max(0, (float) ($user['u'] ?? 0) + (float) ($user['d'] ?? 0));
+        $usedGb = number_format($usedBytes / 1073741824, 2, '.', '');
+        $usedGb = rtrim(rtrim($usedGb, '0'), '.');
+        $expiredAt = (int) ($user['expired_at'] ?? 0);
+        $expiredDate = $expiredAt > 0 ? date('Y-m-d', $expiredAt) : 'Không thời hạn';
+
+        return sprintf(
+            '👤 ID: %s | 📱 Đã dùng: %s GB | 💡 Hạn: %s%s',
+            $user['id'] ?? '--',
+            $usedGb === '' ? '0' : $usedGb,
+            $expiredDate,
+            (string) $suffix
+        );
+    }
+
     public static function getSubscribeUrl($token)
     {
         $submethod = (int)config('v2board.show_subscribe_method', 0);

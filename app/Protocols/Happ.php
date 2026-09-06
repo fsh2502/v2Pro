@@ -102,10 +102,11 @@ class Happ
         $this->addHeader($headers, 'support-url', $supportUrl);
         $headers['routing-enable'] = $this->boolValue(config('v2board.app_routing_enable', 1));
 
-        $announce = config('v2board.app_announce', '');
-        if ($announce !== '') {
-            $headers['announce'] = 'base64:' . base64_encode($announce);
-        }
+        $customAnnounce = (string) config('v2board.app_announce', '');
+        $announce = trim($customAnnounce) !== ''
+            ? $customAnnounce
+            : Helper::buildSubscriptionAnnounce($user);
+        $headers['announce'] = 'base64:' . base64_encode($announce);
 
         $providerId = trim((string) config('v2board.app_provider_id', ''));
         if ($providerId === '') {
