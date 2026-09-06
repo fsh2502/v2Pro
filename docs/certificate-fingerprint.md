@@ -133,6 +133,18 @@ bash /tmp/setup-wss-proxy.sh node-a.example.com /node-a 10001
 Chạy lại với domain, path và cổng nội bộ khác để thêm website tiếp theo. Nginx chọn
 đúng chứng chỉ theo SNI và chuyển từng WebSocket path đến listener loopback tương ứng.
 
+SNI và WebSocket Host cần cùng là domain kết nối node; tắt Disable SNI và
+`acceptProxyProtocol`. Panel kiểm tra các điều kiện này khi lưu, đồng thời yêu
+cầu đường dẫn cert/key rõ ràng để tránh dùng nhầm chứng chỉ khi NodeID trùng nhau
+giữa các website. Nếu thiếu WebSocket Host, panel điền từ SNI. Cấu hình đã lưu
+từ trước cần được mở, kiểm tra và lưu lại, sau đó cập nhật subscription ở client.
+
+Kiểm thử nhiều website: hai listener Trojan/WS cùng NodeID trên hai panel đều
+xác thực và truyền dữ liệu đến echo server nội bộ. Thử Nginx trên loopback với
+hai domain/chứng chỉ riêng xác nhận đúng vân tay và upstream cho cả hai;
+thiếu SNI ở domain thứ hai tái hiện chứng chỉ của domain đầu tiên, còn HTTP Host
+nhầm domain tái hiện 404. Đây là kiểm thử cục bộ, chưa xác nhận cấu hình VPS của người dùng.
+
 ## Áp dụng và triển khai
 
 Thay đổi panel nằm trực tiếp trong repo v2Pro này. Thay đổi node nằm trong

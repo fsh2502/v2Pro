@@ -105,6 +105,7 @@ class V2nodeController extends Controller
             }
             $params['tls_settings']['terminate_tls_at_proxy'] = $terminateAtProxy ? '1' : '0';
         }
+        $params = \App\Utils\ProxyTls::normalize($params);
         if ($params['network'] != 'tcp' && isset($params['encryption']) && $params['encryption'] != 'mlkem768x25519plus') {
             $params['flow'] = null;
         }

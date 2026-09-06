@@ -63,7 +63,7 @@
                             onChange: event => this.props.onProxyTerminationChange(event.target.checked ? '1' : '0')
                         }),
                         ' TLS tại Nginx (backend WebSocket thường)'),
-                    h('small', null, 'Giữ TLS/WSS trong subscription, nhưng v2node chỉ nghe WS nội bộ. Nginx phải dùng đúng Cert File và Key File bên dưới.')
+                    h('small', null, 'Giữ TLS/WSS trong subscription, nhưng v2node chỉ nghe WS nội bộ. Server Name (SNI) và WebSocket Host phải cùng là domain kết nối node; tắt Disable SNI và acceptProxyProtocol. Mỗi node dùng cổng dịch vụ riêng. Cert File và Key File phải đúng cặp mà Nginx dùng cho domain đó.')
                 );
             }
         };
