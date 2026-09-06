@@ -100,18 +100,27 @@ class Helper
     public static function buildSubscriptionAnnounce($user, $suffix = '')
     {
         $usedBytes = max(0, (float) ($user['u'] ?? 0) + (float) ($user['d'] ?? 0));
-        $usedGb = number_format($usedBytes / 1073741824, 2, '.', '');
-        $usedGb = rtrim(rtrim($usedGb, '0'), '.');
+        $usedGb = self::formatGigabytes($usedBytes);
+        $totalGb = self::formatGigabytes(max(0, (float) ($user['transfer_enable'] ?? 0)));
         $expiredAt = (int) ($user['expired_at'] ?? 0);
-        $expiredDate = $expiredAt > 0 ? date('Y-m-d', $expiredAt) : 'Không thời hạn';
+        $expiredDate = $expiredAt > 0 ? date('d/m/Y', $expiredAt) : 'Không thời hạn';
 
         return sprintf(
-            '👤 ID: %s | 📱 Đã dùng: %s GB | 💡 Hạn: %s%s',
+            '👤 ID: %s | 📱 Đã dùng: %s GB / Tổng: %sGB | 💡 Hạn: %s%s',
             $user['id'] ?? '--',
-            $usedGb === '' ? '0' : $usedGb,
+            $usedGb,
+            $totalGb,
             $expiredDate,
             (string) $suffix
         );
+    }
+
+    private static function formatGigabytes($bytes)
+    {
+        $value = number_format(max(0, (float) $bytes) / 1073741824, 2, '.', '');
+        $value = rtrim(rtrim($value, '0'), '.');
+
+        return $value === '' ? '0' : $value;
     }
 
     public static function getSubscribeUrl($token)
