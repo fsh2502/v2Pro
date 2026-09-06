@@ -92,6 +92,7 @@ class AdminRoute
             $router->group([
                 'prefix' => 'server/v2node'
             ], function ($router) {
+                $router->get('certificate', 'V1\\Admin\\Server\\V2nodeController@certificate');
                 $router->post('save', 'V1\\Admin\\Server\\V2nodeController@save');
                 $router->post('drop', 'V1\\Admin\\Server\\V2nodeController@drop');
                 $router->post('update', 'V1\\Admin\\Server\\V2nodeController@update');

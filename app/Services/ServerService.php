@@ -192,6 +192,7 @@ class ServerService
         $servers = [];
         $model = ServerV2node::orderBy('sort', 'ASC');
         $v2node = $model->get()->keyBy('id');
+        $certificates = new NodeCertificateService();
         foreach ($v2node as $key => $v) {
             if (!$v['show']) continue;
             $v2node[$key]['type'] = 'v2node';
@@ -211,7 +212,11 @@ class ServerService
                     $v2node[$key]['encryption_settings'] = array_diff_key($v2node[$key]['encryption_settings'], array('private_key' => ''));
                 }
             }
-            $servers[] = $v2node[$key]->toArray();
+            $server = $certificates->attach($v2node[$key]->toArray(), $v2node[$v['parent_id']] ?? $v);
+            if (is_array($server['tls_settings'] ?? null)) {
+                unset($server['tls_settings']['dns_env'], $server['tls_settings']['key_file'], $server['tls_settings']['cert_file']);
+            }
+            $servers[] = $server;
         }
         return $servers;
     }
@@ -238,6 +243,10 @@ class ServerService
             }
             $server['is_online'] = (time() - 300 > $server['last_check_at']) ? 0 : 1;
             $server['cache_key'] = "{$server['type']}-{$server['id']}-{$server['updated_at']}-{$server['is_online']}";
+            if ($server['type'] === 'v2node') {
+                $server['cache_key'] .= '-' . ($server['tls_certificate_sha256'] ?? '')
+                    . '-' . ($server['tls_public_key_sha256'] ?? '');
+            }
             return $server;
         }, $servers);
     }

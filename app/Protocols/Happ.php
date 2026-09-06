@@ -277,6 +277,8 @@ class Happ
                 break;
         }
 
+        $config = \App\Utils\TlsPin::uri($config, $server);
+        if (isset($config['vcn'])) $config['pcn'] = $config['vcn'];
         return "vmess://" . base64_encode(json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) . "\r\n";
     }
 
@@ -321,6 +323,8 @@ class Happ
 
         $host = Helper::formatHost($server['host']);
         $port = $server['port'];
+        $params = \App\Utils\TlsPin::uri($params, $server);
+        if (isset($params['vcn'])) $params['pcn'] = $params['vcn'];
         $query = http_build_query($params);
 
         return self::appendHappFragmentOptions("vless://{$uuid}@{$host}:{$port}?{$query}#{$name}\r\n", $server);
@@ -355,6 +359,8 @@ class Happ
         $host = Helper::formatHost($server['host']);
         $port = $server['port'];
         $name = rawurlencode($server['name']);
+        $params = \App\Utils\TlsPin::uri($params, $server);
+        if (isset($params['vcn'])) $params['pcn'] = $params['vcn'];
         $query = http_build_query($params);
 
         return self::appendHappFragmentOptions("trojan://{$password}@{$host}:{$port}?{$query}#{$name}\r\n", $server);
@@ -430,6 +436,8 @@ class Happ
             $uri .= "&mport=" . rawurlencode($server['mport'] ?? $server['port']);
         }
 
+        $pin = \App\Utils\TlsPin::resolve($server);
+        if ($pin['certificate'] !== '') $uri .= '&pinSHA256=' . $pin['certificate'];
         return self::appendHappFragmentOptions("{$uri}#{$name}\r\n", $server);
     }
 
@@ -452,6 +460,8 @@ class Happ
             $uri .= "&mport=" . rawurlencode($server['mport'] ?? $server['port']);
         }
 
+        $pin = \App\Utils\TlsPin::resolve($server);
+        if ($pin['certificate'] !== '') $uri .= '&pinSHA256=' . $pin['certificate'];
         return self::appendHappFragmentOptions("{$uri}#{$name}\r\n", $server);
     }
 
@@ -496,6 +506,8 @@ class Happ
             self::applyNetworkSettings($server, $params);
         }
 
+        $params = \App\Utils\TlsPin::uri($params, $server);
+        if (isset($params['vcn'])) $params['pcn'] = $params['vcn'];
         $query = http_build_query($params);
         return self::appendHappFragmentOptions("anytls://{$password}@{$host}:{$port}/?{$query}#{$name}\r\n", $server);
     }

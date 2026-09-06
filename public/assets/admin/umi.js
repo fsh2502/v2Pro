@@ -104669,6 +104669,7 @@
         )(V)
           , H = (n("/xke"),
         n("TeRw"));
+        var NodeCertificate = window.createNodeCertificateComponent(y.a);
         class U extends y.a.Component {
             constructor(e) {
                 super(e);
@@ -104714,7 +104715,12 @@
                     value: t,
                     onChange: e=>this.change("server_name", e.target.value),
                     placeholder: tls == 2 ? "REALITY\u5fc5\u586b\uff0c\u4e0e\u540e\u7aef\u4fdd\u6301\u4e00\u81f4" : ""
-                })), tls == 1 && cert_apply && y.a.createElement("div", {
+                })), tls == 1 && cert_apply && y.a.createElement(NodeCertificate, {
+                    key: this.props.nodeId,
+                    nodeId: this.props.nodeId,
+                    enabled: e.certificate_pinning === undefined || Number(e.certificate_pinning) !== 0,
+                    onChange: value=>this.change("certificate_pinning", value)
+                }), tls == 1 && cert_apply && y.a.createElement("div", {
                     className: "form-group"
                 }, y.a.createElement("label", null, "\u8bc1\u4e66\u6a21\u5f0fCert Mode"), y.a.createElement(N["a"], {
                     value: e.cert_mode ?? "self",

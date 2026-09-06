@@ -9,11 +9,13 @@ class Singbox
     private $servers;
     private $user;
     private $config;
+    private $version;
 
     public function __construct($user, $servers, array $options = null)
     {
         $this->user = $user;
         $this->servers = $servers;
+        $this->version = $options['version'] ?? null;
     }
 
     public function handle()
@@ -138,7 +140,7 @@ class Singbox
 
             $array['plugin_opts'] = implode(';', $plugin_opts_parts);
         }
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
 
@@ -183,7 +185,7 @@ class Singbox
             if (isset($grpcSettings['serviceName'])) $array['transport']['service_name'] = $grpcSettings['serviceName'];
         }
 
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildVless($password, $server)
@@ -248,7 +250,7 @@ class Singbox
             }
         }
 
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildTrojan($password, $server) 
@@ -287,7 +289,7 @@ class Singbox
             }
         };
 
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildTuic($password, $server)
@@ -313,7 +315,7 @@ class Singbox
         ];
         $array['tls']['server_name'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
 
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildAnyTLS($password, $server)
@@ -374,7 +376,7 @@ class Singbox
                 if (isset($grpcSettings['serviceName'])) $array['transport']['service_name'] = $grpcSettings['serviceName'];
             }
         }
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildHysteria($password, $server, $user)
@@ -434,7 +436,7 @@ class Singbox
             }
         }
 
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 
     protected function buildHysteria2($password, $server)
@@ -465,6 +467,6 @@ class Singbox
             $array['obfs']['type'] = $server['obfs'];
             $array['obfs']['password'] = $server['obfs_password'];
         }
-        return $array;
+        return \App\Utils\TlsPin::singbox($array, $server, $this->version);
     }
 }

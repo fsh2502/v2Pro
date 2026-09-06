@@ -156,7 +156,7 @@ class ClashVerge
             }
             $array['plugin-opts'] = $plugin_opts;
         }
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildVmess($uuid, $server)
@@ -212,7 +212,7 @@ class ClashVerge
             }
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildVless($uuid, $server)
@@ -299,7 +299,7 @@ class ClashVerge
             $array['encryption'] .= '.' . $encryptionSettings['password'] ?? '';
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildTrojan($password, $server)
@@ -330,7 +330,7 @@ class ClashVerge
         $tlsSettings = $server['tls_settings'] ?? [];
         $array['sni'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
         $array['skip-cert-verify'] = ($server['allow_insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0)) == 1 ? true : false;
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildTuic($password, $server)
@@ -352,7 +352,7 @@ class ClashVerge
         $array['skip-cert-verify'] = ($server['insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0)) == 1 ? true : false;
         $array['sni'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildAnyTLS($password, $server)
@@ -373,7 +373,7 @@ class ClashVerge
         $tlsSettings = $server['tls_settings'] ?? [];
         $array['sni'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
         $array['skip-cert-verify'] = ($server['insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0)) == 1 ? true : false;
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     public static function buildHysteria($password, $server)
@@ -419,7 +419,7 @@ class ClashVerge
             $array['protocol'] = 'udp';
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     private function buildHysteria2($password, $server)
@@ -451,7 +451,7 @@ class ClashVerge
             $array['obfs'] = $server['obfs'];
             $array['obfs-password'] = $server['obfs_password'];
         }
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server);
     }
 
     private function isMatch($exp, $str)

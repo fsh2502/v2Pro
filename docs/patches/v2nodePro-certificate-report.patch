@@ -1,0 +1,527 @@
+diff --git a/api/v2board/node.go b/api/v2board/node.go
+index fb10c34..986fd38 100644
+--- a/api/v2board/node.go
++++ b/api/v2board/node.go
+@@ -70,10 +70,12 @@ type Route struct {
+ }
+ 
+ type BaseConfig struct {
+-	PushInterval           any `json:"push_interval"`
+-	PullInterval           any `json:"pull_interval"`
+-	DeviceOnlineMinTraffic int `json:"device_online_min_traffic"`
+-	NodeReportMinTraffic   int `json:"node_report_min_traffic"`
++	CertificateReport      bool   `json:"certificate_report"`
++	CertificateRevision    string `json:"certificate_revision"`
++	PushInterval           any    `json:"push_interval"`
++	PullInterval           any    `json:"pull_interval"`
++	DeviceOnlineMinTraffic int    `json:"device_online_min_traffic"`
++	NodeReportMinTraffic   int    `json:"node_report_min_traffic"`
+ }
+ 
+ type TlsSettings struct {
+diff --git a/node/controller.go b/node/controller.go
+index 444a6b7..2579dd3 100644
+--- a/node/controller.go
++++ b/node/controller.go
+@@ -3,27 +3,30 @@ package node
+ import (
+ 	"errors"
+ 	"fmt"
++	"github.com/fsh2502/v2nodePro/common/certificate"
+ 
+-	log "github.com/sirupsen/logrus"
+ 	panel "github.com/fsh2502/v2nodePro/api/v2board"
+ 	"github.com/fsh2502/v2nodePro/common/task"
+ 	"github.com/fsh2502/v2nodePro/conf"
+ 	"github.com/fsh2502/v2nodePro/core"
+ 	"github.com/fsh2502/v2nodePro/limiter"
++	log "github.com/sirupsen/logrus"
+ )
+ 
+ type Controller struct {
+-	server                  *core.V2Core
+-	apiClient               *panel.Client
+-	tag                     string
+-	limiter                 *limiter.Limiter
+-	userList                []panel.UserInfo
+-	aliveMap                map[int]int
+-	conf                    *conf.NodeConfig
+-	info                    *panel.NodeInfo
+-	nodeInfoMonitorPeriodic *task.Task
+-	userReportPeriodic      *task.Task
+-	renewCertPeriodic       *task.Task
++	server                    *core.V2Core
++	apiClient                 *panel.Client
++	tag                       string
++	limiter                   *limiter.Limiter
++	userList                  []panel.UserInfo
++	aliveMap                  map[int]int
++	conf                      *conf.NodeConfig
++	info                      *panel.NodeInfo
++	nodeInfoMonitorPeriodic   *task.Task
++	userReportPeriodic        *task.Task
++	renewCertPeriodic         *task.Task
++	certificateReportPeriodic *task.Task
++	loadedCertificate         *certificate.Fingerprint
+ }
+ 
+ // NewController return a Node controller with default parameters.
+@@ -73,6 +76,7 @@ func (c *Controller) Start(x *core.V2Core) error {
+ 			return fmt.Errorf("request cert error: %s", err)
+ 		}
+ 	}
++	c.captureCertificate()
+ 	// Add new tag
+ 	err = c.server.AddNode(c.tag, node)
+ 	if err != nil {
+@@ -94,6 +98,9 @@ func (c *Controller) Start(x *core.V2Core) error {
+ 
+ // Close implement the Close() function of the service interface
+ func (c *Controller) Close() error {
++	if c.certificateReportPeriodic != nil {
++		c.certificateReportPeriodic.Close()
++	}
+ 	limiter.DeleteLimiter(c.tag)
+ 	if c.nodeInfoMonitorPeriodic != nil {
+ 		c.nodeInfoMonitorPeriodic.Close()
+diff --git a/node/task.go b/node/task.go
+index f4ae428..d00f7d1 100644
+--- a/node/task.go
++++ b/node/task.go
+@@ -3,13 +3,20 @@ package node
+ import (
+ 	"time"
+ 
+-	log "github.com/sirupsen/logrus"
+ 	panel "github.com/fsh2502/v2nodePro/api/v2board"
+ 	"github.com/fsh2502/v2nodePro/common/task"
+ 	vCore "github.com/fsh2502/v2nodePro/core"
++	log "github.com/sirupsen/logrus"
+ )
+ 
+ func (c *Controller) startTasks(node *panel.NodeInfo) {
++	if c.certificateReportingEnabled() {
++		c.certificateReportPeriodic = &task.Task{
++			Name: "reportCertificate", Interval: node.PushInterval,
++			Execute: c.reportCertificateTask, Reload: c.reloadTask,
++		}
++		_ = c.certificateReportPeriodic.Start(true)
++	}
+ 	// fetch node info task
+ 	c.nodeInfoMonitorPeriodic = &task.Task{
+ 		Name:     "nodeInfoMonitor",
+@@ -47,6 +54,9 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
+ }
+ 
+ func (c *Controller) reloadTask() {
++	if c.certificateReportPeriodic != nil {
++		c.certificateReportPeriodic.Close()
++	}
+ 	newClient, err := panel.New(c.conf)
+ 	if err != nil {
+ 		log.Panic("Tasks reload failed")
+diff --git a/api/v2board/certificate.go b/api/v2board/certificate.go
+new file mode 100644
+--- /dev/null
++++ b/api/v2board/certificate.go
+@@ -0,0 +1,63 @@
++package panel
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"fmt"
++	"io"
++	"net/http"
++	"net/url"
++	"strconv"
++	"strings"
++	"time"
++)
++
++type CertificateReport struct {
++	Revision        string `json:"revision"`
++	TLSEnabled      bool   `json:"tls_enabled"`
++	SHA256          string `json:"tls_certificate_sha256,omitempty"`
++	PublicKeySHA256 string `json:"tls_public_key_sha256,omitempty"`
++	NotAfter        int64  `json:"tls_not_after,omitempty"`
++	Issuer          string `json:"tls_issuer,omitempty"`
++}
++
++func (c *Client) ReportCertificate(report CertificateReport) error {
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	// Use the existing HTTP transport without Resty's URL-bearing error hooks.
++	payload, err := json.Marshal(report)
++	if err != nil {
++		return fmt.Errorf("cannot encode certificate report")
++	}
++	endpoint, err := url.Parse(strings.TrimRight(c.APIHost, "/") + "/api/v2/server/certificate")
++	if err != nil {
++		return fmt.Errorf("invalid certificate report endpoint")
++	}
++	query := endpoint.Query()
++	query.Set("node_type", "v2node")
++	query.Set("node_id", strconv.Itoa(c.NodeId))
++	query.Set("token", c.Token)
++	endpoint.RawQuery = query.Encode()
++	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(payload))
++	if err != nil {
++		return fmt.Errorf("cannot create certificate report request")
++	}
++	req.Header.Set("Content-Type", "application/json")
++	req.Header.Set("Accept", "application/json")
++	r, err := c.client.GetClient().Do(req)
++	if err != nil {
++		return fmt.Errorf("certificate report request failed")
++	}
++	defer r.Body.Close()
++	if r.StatusCode != 200 {
++		return fmt.Errorf("certificate report HTTP %d", r.StatusCode)
++	}
++	var result struct {
++		Data bool `json:"data"`
++	}
++	if json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&result) != nil || !result.Data {
++		return fmt.Errorf("certificate report was not accepted")
++	}
++	return nil
++}
+diff --git a/api/v2board/certificate_test.go b/api/v2board/certificate_test.go
+new file mode 100644
+--- /dev/null
++++ b/api/v2board/certificate_test.go
+@@ -0,0 +1,54 @@
++package panel
++
++import (
++	"encoding/json"
++	"github.com/fsh2502/v2nodePro/conf"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++)
++
++func TestCertificateReport(t *testing.T) {
++	for _, tc := range []struct {
++		name   string
++		status int
++		body   string
++		ok     bool
++	}{
++		{"accepted", 200, `{"data":true}`, true},
++		{"business failure", 200, `{"status":"fail"}`, false},
++		{"unauthorized", 401, `secret-token`, false},
++		{"configuration changed", 409, `{}`, false},
++		{"malformed", 200, `not json`, false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				if r.Method != "POST" || r.URL.Path != "/api/v2/server/certificate" {
++					t.Error("wrong method or path")
++				}
++				if r.URL.Query().Get("token") != "secret-token" || r.URL.Query().Get("node_id") != "7" {
++					t.Error("missing existing node authentication")
++				}
++				var got CertificateReport
++				if json.NewDecoder(r.Body).Decode(&got) != nil || got.SHA256 != strings.Repeat("ab", 32) || got.Revision != strings.Repeat("c", 64) {
++					t.Error("wrong report payload")
++				}
++				w.WriteHeader(tc.status)
++				w.Write([]byte(tc.body))
++			}))
++			defer srv.Close()
++			client, err := New(&conf.NodeConfig{APIHost: srv.URL, NodeID: 7, Key: "secret-token"})
++			if err != nil {
++				t.Fatal(err)
++			}
++			err = client.ReportCertificate(CertificateReport{Revision: strings.Repeat("c", 64), TLSEnabled: true, SHA256: strings.Repeat("ab", 32)})
++			if (err == nil) != tc.ok {
++				t.Fatalf("unexpected result: %v", err)
++			}
++			if err != nil && strings.Contains(err.Error(), "secret-token") {
++				t.Fatal("error leaked token")
++			}
++		})
++	}
++}
+diff --git a/common/certificate/certificate.go b/common/certificate/certificate.go
+new file mode 100644
+--- /dev/null
++++ b/common/certificate/certificate.go
+@@ -0,0 +1,37 @@
++// Package certificate reads the public fingerprints of a local TLS key pair.
++package certificate
++
++import (
++	"crypto/sha256"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/base64"
++	"encoding/hex"
++)
++
++type Fingerprint struct {
++	SHA256          string
++	PublicKeySHA256 string
++	NotAfter        int64
++	Issuer          string
++}
++
++func Read(certFile, keyFile string) (*Fingerprint, error) {
++	// Validate the pair before reloading during non-atomic renewals.
++	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
++	if err != nil {
++		return nil, err
++	}
++	leaf, err := x509.ParseCertificate(pair.Certificate[0])
++	if err != nil {
++		return nil, err
++	}
++	certHash := sha256.Sum256(leaf.Raw)
++	keyHash := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
++	return &Fingerprint{
++		SHA256:          hex.EncodeToString(certHash[:]),
++		PublicKeySHA256: base64.StdEncoding.EncodeToString(keyHash[:]),
++		NotAfter:        leaf.NotAfter.Unix(),
++		Issuer:          leaf.Issuer.String(),
++	}, nil
++}
+diff --git a/common/certificate/certificate_test.go b/common/certificate/certificate_test.go
+new file mode 100644
+--- /dev/null
++++ b/common/certificate/certificate_test.go
+@@ -0,0 +1,72 @@
++package certificate
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/sha256"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"encoding/base64"
++	"encoding/hex"
++	"encoding/pem"
++	"math/big"
++	"os"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++func TestReadLeafAndSPKI(t *testing.T) {
++	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	leaf := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "node.test"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour)}
++	der, err := x509.CreateCertificate(rand.Reader, leaf, leaf, &key.PublicKey, key)
++	if err != nil {
++		t.Fatal(err)
++	}
++	keyDER, _ := x509.MarshalECPrivateKey(key)
++	dir := t.TempDir()
++	certFile, keyFile := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
++	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
++	// The leaf is the first certificate of a chain.
++	os.WriteFile(certFile, append(certPEM, certPEM...), 0600)
++	os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0600)
++	got, err := Read(certFile, keyFile)
++	if err != nil {
++		t.Fatal(err)
++	}
++	parsed, _ := x509.ParseCertificate(der)
++	certHash, keyHash := sha256.Sum256(der), sha256.Sum256(parsed.RawSubjectPublicKeyInfo)
++	if got.SHA256 != hex.EncodeToString(certHash[:]) {
++		t.Fatal("wrong leaf hash")
++	}
++	if got.PublicKeySHA256 != base64.StdEncoding.EncodeToString(keyHash[:]) {
++		t.Fatal("wrong SPKI hash")
++	}
++	if got.NotAfter != parsed.NotAfter.Unix() || got.Issuer != "CN=node.test" {
++		t.Fatal("wrong metadata")
++	}
++	leaf.SerialNumber = big.NewInt(2)
++	renewed, _ := x509.CreateCertificate(rand.Reader, leaf, leaf, &key.PublicKey, key)
++	os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: renewed}), 0600)
++	next, err := Read(certFile, keyFile)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if next.SHA256 == got.SHA256 || next.PublicKeySHA256 != got.PublicKeySHA256 {
++		t.Fatal("renewal must change cert hash while retaining SPKI for same key")
++	}
++	otherKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	otherDER, _ := x509.MarshalECPrivateKey(otherKey)
++	os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: otherDER}), 0600)
++	if _, err := Read(certFile, keyFile); err == nil {
++		t.Fatal("accepted mismatched key pair")
++	}
++	os.WriteFile(certFile, []byte("invalid"), 0600)
++	if _, err := Read(certFile, keyFile); err == nil {
++		t.Fatal("accepted invalid certificate")
++	}
++	if _, err := Read(filepath.Join(dir, "missing"), keyFile); err == nil {
++		t.Fatal("accepted missing certificate")
++	}
++}
+diff --git a/node/certificate_report.go b/node/certificate_report.go
+new file mode 100644
+--- /dev/null
++++ b/node/certificate_report.go
+@@ -0,0 +1,59 @@
++package node
++
++import (
++	panel "github.com/fsh2502/v2nodePro/api/v2board"
++	"github.com/fsh2502/v2nodePro/common/certificate"
++	log "github.com/sirupsen/logrus"
++)
++
++func (c *Controller) certificateReportingEnabled() bool {
++	return c.info.Common.BaseConfig != nil && c.info.Common.BaseConfig.CertificateReport
++}
++
++func (c *Controller) captureCertificate() {
++	if !c.certificateReportingEnabled() || c.info.Security != panel.Tls {
++		return
++	}
++	cert := c.info.Common.CertInfo
++	if cert == nil || cert.CertMode == "" || cert.CertMode == "none" {
++		return
++	}
++	// Only a successfully started controller will report this snapshot.
++	c.loadedCertificate, _ = certificate.Read(cert.CertFile, cert.KeyFile)
++}
++
++func (c *Controller) reportCertificateTask() error {
++	if !c.certificateReportingEnabled() {
++		return nil
++	}
++	report := panel.CertificateReport{Revision: c.info.Common.BaseConfig.CertificateRevision}
++	cert := c.info.Common.CertInfo
++	if c.info.Security == panel.Tls && cert != nil && cert.CertMode != "" && cert.CertMode != "none" {
++		current, err := certificate.Read(cert.CertFile, cert.KeyFile)
++		if err != nil {
++			log.WithField("tag", c.tag).Warn("Cannot read TLS key pair; keeping last reported certificate")
++			return nil
++		}
++		if c.loadedCertificate == nil || current.SHA256 != c.loadedCertificate.SHA256 {
++			// Xray polls files on its own schedule. Reload before publishing a new
++			// pin, including certificates renewed by an external ACME client.
++			if c.server.ReloadCh != nil {
++				select {
++				case c.server.ReloadCh <- struct{}{}:
++				default:
++				}
++			}
++			return nil
++		}
++		report.TLSEnabled = true
++		report.SHA256 = current.SHA256
++		report.PublicKeySHA256 = current.PublicKeySHA256
++		report.NotAfter = current.NotAfter
++		report.Issuer = current.Issuer
++	}
++	if err := c.apiClient.ReportCertificate(report); err != nil {
++		log.WithField("tag", c.tag).Warn(err)
++	}
++	// Reporting failures do not stop the node or traffic accounting.
++	return nil
++}
+diff --git a/node/certificate_report_test.go b/node/certificate_report_test.go
+new file mode 100644
+--- /dev/null
++++ b/node/certificate_report_test.go
+@@ -0,0 +1,90 @@
++package node
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"encoding/json"
++	"encoding/pem"
++	panel "github.com/fsh2502/v2nodePro/api/v2board"
++	"github.com/fsh2502/v2nodePro/conf"
++	"github.com/fsh2502/v2nodePro/core"
++	"math/big"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++func TestCertificateReportingLifecycle(t *testing.T) {
++	var reports atomic.Int32
++	var enabled atomic.Bool
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		var report panel.CertificateReport
++		if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
++			t.Error(err)
++		}
++		enabled.Store(report.TLSEnabled)
++		reports.Add(1)
++		w.Header().Set("Content-Type", "application/json")
++		w.Write([]byte(`{"data":true}`))
++	}))
++	defer srv.Close()
++	api, _ := panel.New(&conf.NodeConfig{APIHost: srv.URL, NodeID: 7, Key: "test-token"})
++	dir := t.TempDir()
++	certFile, keyFile := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
++	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	keyDER, _ := x509.MarshalECPrivateKey(key)
++	os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0600)
++	writeCert := func(serial int64) {
++		leaf := &x509.Certificate{SerialNumber: big.NewInt(serial), Subject: pkix.Name{CommonName: "node.test"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour)}
++		der, err := x509.CreateCertificate(rand.Reader, leaf, leaf, &key.PublicKey, key)
++		if err != nil {
++			t.Fatal(err)
++		}
++		os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0600)
++	}
++	writeCert(1)
++	c := &Controller{apiClient: api, server: &core.V2Core{ReloadCh: make(chan struct{}, 1)}, info: &panel.NodeInfo{
++		Security: panel.Tls, Common: &panel.CommonNode{BaseConfig: &panel.BaseConfig{CertificateReport: true, CertificateRevision: "revision"}, CertInfo: &panel.CertInfo{CertMode: "file", CertFile: certFile, KeyFile: keyFile}},
++	}}
++	c.captureCertificate()
++	if c.loadedCertificate == nil {
++		t.Fatal("did not capture certificate")
++	}
++	c.reportCertificateTask()
++	if reports.Load() != 1 || !enabled.Load() {
++		t.Fatal("did not report initial TLS certificate")
++	}
++	writeCert(2)
++	c.reportCertificateTask()
++	if reports.Load() != 1 || len(c.server.ReloadCh) != 1 {
++		t.Fatal("new pin published before runtime reload")
++	}
++	<-c.server.ReloadCh
++	c.captureCertificate() // A new, successfully started controller captures this.
++	c.reportCertificateTask()
++	if reports.Load() != 2 {
++		t.Fatal("did not report certificate after reload")
++	}
++	os.WriteFile(certFile, []byte("broken"), 0600)
++	c.reportCertificateTask()
++	if reports.Load() != 2 || len(c.server.ReloadCh) != 0 {
++		t.Fatal("bad file must retain last report without reload")
++	}
++	c.info.Security = panel.Reality
++	c.reportCertificateTask()
++	if reports.Load() != 3 || enabled.Load() {
++		t.Fatal("REALITY must clear ordinary TLS report")
++	}
++	c.info.Common.BaseConfig.CertificateReport = false
++	c.reportCertificateTask()
++	if reports.Load() != 3 {
++		t.Fatal("legacy panel must not receive certificate requests")
++	}
++}

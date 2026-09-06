@@ -38,11 +38,11 @@ class ClientController extends Controller
                 }
                 if (strpos($flag, 'sing') !== false) {
                     $version = null;
-                    if (preg_match('/sing-box\s+([0-9.]+)/i', $flag, $matches)) {
+                    if (preg_match('/sing-box[\s\/]+(\d+\.\d+\.\d+)/i', $flag . ' ' . $request->userAgent(), $matches)) {
                         $version = $matches[1];
                     }
-                    if (!is_null($version) && $version >= '1.12.0') {
-                        $class = new Singbox($user, $servers);
+                    if (!is_null($version) && version_compare($version, '1.12.0', '>=')) {
+                        $class = new Singbox($user, $servers, ['version' => $version]);
                     } else {
                         $class = new SingboxOld($user, $servers);
                     }

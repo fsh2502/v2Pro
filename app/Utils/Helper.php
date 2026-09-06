@@ -286,6 +286,7 @@ class Helper
                 break;
         }
 
+        $config = TlsPin::uri($config, $server);
         return "vmess://" . base64_encode(json_encode($config)) . "\r\n";
     }
 
@@ -328,7 +329,7 @@ class Helper
 
         self::configureNetworkSettings($server, $config);
 
-        return self::buildUriString('vless', $uuid, $server, $name, $config);
+        return self::buildUriString('vless', $uuid, $server, $name, TlsPin::uri($config, $server));
     }
 
     public static function buildTrojanUri($password, $server)
@@ -354,6 +355,7 @@ class Helper
                 }
             }
         }
+        $config = TlsPin::uri($config, $server);
         $query = http_build_query($config);
         return "trojan://{$password}@" . self::formatHost($server['host']) . ":{$server['port']}?{$query}#". rawurlencode($server['name']) . "\r\n";
     }
@@ -379,6 +381,8 @@ class Helper
         if (count($parts) !== 1 || strpos($parts[0], '-') !== false) {
             $uri .= "&mport={$server['mport']}";
         }
+        $pin = TlsPin::resolve($server);
+        if ((int)$server['version'] === 2 && $pin['certificate'] !== '') $uri .= '&pinSHA256=' . $pin['certificate'];
         return "{$uri}#{$name}\r\n";
     }
 
@@ -401,6 +405,8 @@ class Helper
         if (count($parts) !== 1 || strpos($parts[0], '-') !== false) {
             $uri .= "&mport={$server['mport']}";
         }
+        $pin = TlsPin::resolve($server);
+        if (true && $pin['certificate'] !== '') $uri .= '&pinSHA256=' . $pin['certificate'];
         return "{$uri}#{$name}\r\n";
     }
 
@@ -446,6 +452,7 @@ class Helper
         if (isset($server['network']) && isset($server['network_settings'])) {
             self::configureNetworkSettings($server, $config);
         }
+        $config = TlsPin::uri($config, $server);
         $query = http_build_query($config);
         return "anytls://{$password}@{$remote}:{$port}/?{$query}#{$name}\r\n";
     }

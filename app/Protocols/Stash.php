@@ -136,7 +136,7 @@ class Stash
             }
             $array['plugin-opts'] = $plugin_opts;
         }
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     public static function buildVmess($uuid, $server)
@@ -195,7 +195,7 @@ class Stash
             }
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     public static function buildVless($uuid, $server)
@@ -258,7 +258,7 @@ class Stash
             }
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
     
     public static function buildTrojan($password, $server)
@@ -288,7 +288,7 @@ class Stash
         };
         if (!empty($server['server_name'])) $array['sni'] = $server['server_name'];
         if (!empty($server['allow_insecure'])) $array['skip-cert-verify'] = ($server['allow_insecure'] ? true : false);
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     public static function buildTuic($password, $server)
@@ -312,7 +312,7 @@ class Stash
             $array['sni'] = $server['server_name'];
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     public static function buildHysteria($password, $server)
@@ -358,7 +358,7 @@ class Stash
             $array['protocol'] = 'udp';
         }
 
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
     
     public static function buildHysteria2($password, $server)
@@ -390,7 +390,7 @@ class Stash
             $array['obfs'] = $server['obfs'];
             $array['obfs-password'] = $server['obfs_password'];
         }
-        return $array;
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     public static function buildAnyTLS($password, $server)
@@ -406,7 +406,7 @@ class Stash
         $array['client-fingerprint'] = !empty($tlsSettings['fingerprint']) ? $tlsSettings['fingerprint'] : 'chrome';
         $array['sni'] = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
         $array['skip-cert-verify'] = ($server['insecure'] ?? ($tlsSettings['allow_insecure'] ?? 0)) == 1 ? true : false;
-        return $array; 
+        return \App\Utils\TlsPin::mihomo($array, $server, true);
     }
 
     private function isRegex($exp)

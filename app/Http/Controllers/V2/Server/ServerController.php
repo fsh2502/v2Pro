@@ -88,6 +88,8 @@ class ServerController extends Controller
         }
 
         $response['base_config'] = [
+            'certificate_report' => true,
+            'certificate_revision' => (new \App\Services\NodeCertificateService())->revision($this->nodeInfo),
             'push_interval' => (int)config('v2board.server_push_interval', 60),
             'pull_interval' => (int)config('v2board.server_pull_interval', 60),
             'node_report_min_traffic' => (int)config('v2board.server_node_report_min_traffic', 0),
@@ -107,5 +109,19 @@ class ServerController extends Controller
         }
 
         return response($response)->header('ETag', "\"{$eTag}\"");
+    }
+
+    public function certificate(Request $request)
+    {
+        $data = $request->validate([
+            'revision' => 'required|string|size:64',
+            'tls_enabled' => 'required|boolean',
+            'tls_certificate_sha256' => 'nullable|string|max:256',
+            'tls_public_key_sha256' => 'nullable|string|max:256',
+            'tls_not_after' => 'nullable|integer|min:0',
+            'tls_issuer' => 'nullable|string|max:1024',
+        ]);
+        (new \App\Services\NodeCertificateService())->report($this->nodeInfo, $data);
+        return response(['data' => true])->header('Cache-Control', 'no-store');
     }
 }

@@ -32,6 +32,7 @@
 <script src="/assets/admin/vendors.async.js?v={{$version}}"></script>
 <script src="/assets/admin/components.async.js?v={{$version}}"></script>
 <script src="/assets/admin/qrcode.async.js?v={{$version}}"></script>
+<script src="/assets/admin/certificate.js?v={{$version}}"></script>
 <script src="/assets/admin/umi.js?v={{$version}}"></script>
 <script src="/assets/admin/vi-VN.js?v={{$version}}"></script>
 <script src="/assets/admin/v2b-mod.js?v={{$version}}"></script>

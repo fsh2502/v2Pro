@@ -10,6 +10,22 @@ use App\Utils\Helper;
 
 class V2nodeController extends Controller
 {
+    public function certificate(Request $request)
+    {
+        $data = $request->validate(['id' => 'required|integer|min:1']);
+        $node = ServerV2node::findOrFail($data['id']);
+        $runtime = $node->parent_id ? ServerV2node::find($node->parent_id) : $node;
+        $runtime = $runtime ?: $node;
+        $snapshot = (new \App\Services\NodeCertificateService())->snapshot($runtime);
+        return response(['data' => array_merge([
+            'status' => (int)$runtime->tls !== 1 ? 'disabled' : ($snapshot ? 'ok' : 'waiting'),
+            'node_id' => (int)$runtime->id,
+            'sha256' => null, 'public_key_sha256' => null,
+            'not_after' => null, 'issuer' => null, 'updated_at' => null,
+            'push_interval' => (int)config('v2board.server_push_interval', 60),
+        ], $snapshot)])->header('Cache-Control', 'no-store');
+    }
+
     public function save(Request $request)
     {
         $params = $request->validate([
