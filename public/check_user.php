@@ -48,8 +48,8 @@ try {
 
     if ($user) {
         $gb = 1073741824;
-        $usedData = number_format(($user['u'] + $user['d']) / $gb, 2);
-        $totalData = number_format($user['transfer_enable'] / $gb, 2);
+        $usedData = round(($user['u'] + $user['d']) / $gb, 2);
+        $totalData = round($user['transfer_enable'] / $gb, 2);
         $expire = ($user['expired_at'] && $user['expired_at'] != 0) ? date('d/m/Y', $user['expired_at']) : 'Vĩnh viễn';
         $planName = $user['plan_name'] ? $user['plan_name'] : 'Chưa có gói';
 

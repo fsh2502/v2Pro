@@ -114,14 +114,21 @@ function escapeHtml(text) {
   return text ? text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
 }
 
+function parseTrafficGb(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value ?? "").trim().replace(/,/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function getUserInfo(token) {
   try {
     const apiRes = await fetch(`https://${CONFIG.V2BOARD_DOMAIN}/check_user.php?token=${encodeURIComponent(token)}`);
     if (apiRes.ok) {
       const userInfo = await apiRes.json();
       if (userInfo.success && userInfo.email) {
-        userInfo.used = parseFloat(userInfo.used);
-        userInfo.total = parseFloat(userInfo.total);
+        userInfo.used = parseTrafficGb(userInfo.used);
+        userInfo.total = parseTrafficGb(userInfo.total);
         return { success: true, ...userInfo };
       }
       return { success: false, msg: `${userInfo.error || "Token khong hop le / Trong"}` };
@@ -444,6 +451,9 @@ async function fetchConfigFromOrigin(request, originalUrl, ua) {
   const params = new URLSearchParams(originalUrl.search);
   if (!params.has("flag")) params.set("flag", detectFlag(ua));
   const targetUrl = `https://${CONFIG.V2BOARD_DOMAIN}${cleanPathname}?${params.toString()}`;
+  const subscriptionPageUrl = new URL(`${originalUrl.origin}${cleanPathname}`);
+  const subscriptionToken = originalUrl.searchParams.get("token");
+  if (subscriptionToken) subscriptionPageUrl.searchParams.set("token", subscriptionToken);
 
   const newHeaders = new Headers(request.headers);
   newHeaders.set("Host", CONFIG.V2BOARD_DOMAIN);
@@ -457,7 +467,7 @@ async function fetchConfigFromOrigin(request, originalUrl, ua) {
     }
     resHeaders.set("profile-update-interval", "2");
     resHeaders.set("support-url", CONFIG.SUPPORT_URL);
-    resHeaders.set("profile-web-page-url", CONFIG.SUPPORT_URL);
+    resHeaders.set("profile-web-page-url", subscriptionPageUrl.toString());
 
     return new Response(response.body, { status: response.status, headers: resHeaders });
   } catch (error) {
@@ -679,50 +689,68 @@ function copySync() {
 </script></body></html>`;
 }
 
-function sr_b64_path(url) {
-  const b = btoa(url).replace(/=+$/g, "");
-  return encodeURIComponent(b);
-}
-
 function HTML_SYNC_SUB_PAGE(origin, token, userInfo) {
   const safeToken = token || "";
+  const accountReady = !!(userInfo && userInfo.success);
+  const used = accountReady && Number.isFinite(Number(userInfo.used)) ? Math.max(0, Number(userInfo.used)) : 0;
+  const total = accountReady && Number.isFinite(Number(userInfo.total)) ? Math.max(0, Number(userInfo.total)) : 0;
+  const usagePercent = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const expiryText = accountReady ? String(userInfo.expire || "-") : "-";
 
-  // IMPORTANT: app se keo RAW -> luon gan raw=1
-  const selfRawShadow = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=shadowrocket&raw=1`;
-  const selfRawV2 = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=v2rayng&raw=1`;
-  const selfRawV2Box = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=v2box&raw=1`;
-  const selfRawIncy = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=incy&raw=1`;
-  const selfRawClash = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=clashmeta&raw=1`;
-  const selfRawSing = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=sing-box&raw=1`;
-  const selfRawHapp = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=happ&raw=1`;
-  const selfRawHiddify = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}&flag=hiddify&raw=1`;
+  function parseExpiry(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const text = String(value).trim();
+    if (/^\d+$/.test(text)) {
+      const numeric = Number(text);
+      return numeric > 1000000000000 ? numeric : numeric * 1000;
+    }
+    const dayFirst = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (dayFirst) return new Date(Number(dayFirst[3]), Number(dayFirst[2]) - 1, Number(dayFirst[1]), 23, 59, 59).getTime();
+    const parsed = Date.parse(text);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
 
-  const shadowrocket_ok = `shadowrocket://add/sub://${sr_b64_path(selfRawShadow)}?remark=${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const v2rayng_new = `v2rayng://install-sub/?url=${encodeURIComponent(selfRawV2)}%23${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const v2box_link = `v2box://install-sub?url=${encodeURIComponent(selfRawV2Box)}&name=${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const incy_install = `incy://import/${selfRawIncy}`;
-  const hiddify_clash = `hiddify://import/${selfRawHiddify}#${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const singbox = `sing-box://import-remote-profile?url=${encodeURIComponent(selfRawSing)}#${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const clash_install = `clash://install-config?url=${encodeURIComponent(selfRawClash)}&name=${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const karing_install = `karing://install-config?url=${encodeURIComponent(selfRawClash)}&name=${encodeURIComponent(CONFIG.PROFILE_NAME)}`;
-  const happ_install = `happ://add/${(selfRawHapp)}`;
+  const expiryTime = accountReady ? parseExpiry(userInfo.expire) : null;
+  const daysLeft = expiryTime === null ? null : Math.ceil((expiryTime - Date.now()) / 86400000);
+  let statusLabel = accountReady ? "Tài khoản đang hoạt động" : "Chưa xác định tài khoản";
+  let statusTone = accountReady ? "success" : "neutral";
+  let alertText = "Gói của bạn đang hoạt động bình thường. Hãy gia hạn sớm để tránh gián đoạn kết nối.";
 
-  const accountInfoHtml =
-    userInfo && userInfo.success
-      ? `<div class="card warn"><b>Thông tin tài khoản:</b>
-  <div class="muted" style="margin-top:8px;display:grid;gap:6px">
-    <div><b>ID:</b> ${escapeHtml(userInfo.id || "-")}</div>
-    <div><b>Tên tài khoản:</b> ${escapeHtml(userInfo.email || "-")}</div>
-    <div><b>Tên gói cước:</b> ${escapeHtml(userInfo.plan || "-")}</div>
-    <div><b>Số GB đã dùng / Tổng GB:</b> ${escapeHtml(userInfo.used ?? "0")}GB / ${escapeHtml(userInfo.total ?? "0")}GB</div>
-    <div><b>Hạn sử dụng:</b> ${escapeHtml(userInfo.expire || "-")}</div>
-  </div>
-</div>`
-      : safeToken
-        ? `<div class="card warn"><b>Thông tin tài khoản:</b>
-  <div class="muted" style="margin-top:8px;color:#b91c1c">${escapeHtml(userInfo?.msg || "Không lấy được thông tin tài khoản.")}</div>
-</div>`
-        : "";
+  if (!safeToken) {
+    statusLabel = "Thiếu mã đăng ký";
+    statusTone = "danger";
+    alertText = "Liên kết hiện tại chưa có mã đăng ký. Vui lòng mở lại liên kết được cung cấp cho tài khoản của bạn.";
+  } else if (!accountReady) {
+    statusLabel = "Không tải được tài khoản";
+    statusTone = "danger";
+    alertText = userInfo?.msg || "Không lấy được thông tin tài khoản. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+  } else if (daysLeft !== null && daysLeft < 0) {
+    statusLabel = "Tài khoản đã hết hạn";
+    statusTone = "danger";
+    alertText = "Gói dịch vụ đã hết hạn. Vui lòng gia hạn để tiếp tục kết nối.";
+  } else if (total > 0 && used >= total) {
+    statusLabel = "Đã hết dung lượng";
+    statusTone = "danger";
+    alertText = "Dung lượng của gói đã được sử dụng hết. Vui lòng gia hạn hoặc nâng cấp gói dịch vụ.";
+  } else if ((daysLeft !== null && daysLeft <= 7) || usagePercent >= 90) {
+    statusLabel = "Tài khoản sắp cần gia hạn";
+    statusTone = "warning";
+    alertText = daysLeft !== null && daysLeft <= 7
+      ? `Gói của bạn chỉ còn ${Math.max(0, daysLeft)} ngày sử dụng. Hãy gia hạn để tránh gián đoạn kết nối.`
+      : `Bạn đã sử dụng ${usagePercent}% dung lượng. Hãy kiểm tra gói dịch vụ để tránh gián đoạn kết nối.`;
+  }
+
+  const daysLeftText = daysLeft === null ? "Chưa xác định" : daysLeft < 0 ? "Đã hết hạn" : `Còn ${daysLeft} ngày`;
+  const subscriptionLink = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}`;
+  const manageUrl = `/manage?token=${encodeURIComponent(safeToken)}`;
+  const supportUrl = CONFIG.SUPPORT_URL || "https://vpn.shoptuantruong.com";
+  const accountName = accountReady ? String(userInfo.email || userInfo.id || "Tài khoản VPN") : "Tài khoản VPN";
+  const copyAction = safeToken
+    ? `<button type="button" class="action action-blue" onclick="copySubscription()"><span class="action-icon">⧉</span><span>Sao chép link đăng ký</span><span class="action-arrow">›</span></button>`
+    : `<button type="button" class="action action-blue" disabled><span class="action-icon">⧉</span><span>Sao chép link đăng ký</span><span class="action-arrow">›</span></button>`;
+  const manageAction = safeToken
+    ? `<a class="action action-purple" href="${escapeHtml(manageUrl)}"><span class="action-icon">▣</span><span>Quản lý thiết bị</span><span class="action-arrow">›</span></a>`
+    : `<span class="action action-purple disabled"><span class="action-icon">▣</span><span>Quản lý thiết bị</span><span class="action-arrow">›</span></span>`;
 
   return `<!doctype html>
 <html lang="vi">
@@ -730,54 +758,174 @@ function HTML_SYNC_SUB_PAGE(origin, token, userInfo) {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>${escapeHtml(CONFIG.PROFILE_NAME)} - Đồng Bộ</title>
+<title>${escapeHtml(CONFIG.PROFILE_NAME)} - Quản lý tài khoản VPN</title>
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;max-width:960px;margin:24px auto;padding:0 14px;background:#f5f7fa}
-.card{background:#fff;border:1px solid #e0e4e8;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 3px #0005}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-a.btn{display:inline-block;padding:12px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;text-decoration:none;color:#333;font-weight:600;transition:.2s}
-a.btn:hover{background:#f0f0f0;border-color:#999}
-a.btn.primary{background:#0066ff;color:#fff;border-color:#0066ff}
-a.btn.primary:hover{background:#0052cc;box-shadow:0 2px 8px #0066ff40}
-.muted{color:#666;font-size:14px;line-height:1.6}
-.warn{background:#fff7e6;border:1px solid #ffc069;border-radius:8px;padding:12px}
-h2{margin:0 0 16px 0;color:#000}
-h3{margin:0 0 12px 0;color:#000;font-size:18px}
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#f4f7fb;--card:#fff;--text:#102044;--muted:#65728d;--line:#e7edf6;--blue:#1677ff;--purple:#7447eb;--green:#12aa62;--amber:#f59e0b;--red:#e5484d}
+body{margin:0;background:radial-gradient(circle at 50% -10%,#eaf3ff 0,transparent 32%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+button,a{font:inherit}
+.page{width:min(1160px,calc(100% - 28px));margin:0 auto;padding:30px 0 42px}
+.hero{text-align:center;margin-bottom:20px}
+.brand{display:inline-flex;align-items:center;gap:13px;text-align:left}
+.logo{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:linear-gradient(145deg,#2693ff,#1469ed);box-shadow:0 12px 30px #1677ff35;color:#fff}
+.logo svg{width:31px;height:31px}
+.brand h1{font-size:clamp(24px,3vw,34px);line-height:1;margin:0 0 6px;letter-spacing:-.035em}
+.brand p{margin:0;color:var(--muted);font-weight:600}
+.status-pill{display:inline-flex;align-items:center;gap:8px;margin-top:13px;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:800;border:1px solid}
+.status-pill::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.status-pill.success{color:#078a4b;background:#eafaf1;border-color:#9ee2bd}
+.status-pill.warning{color:#a96500;background:#fff7df;border-color:#f7ce79}
+.status-pill.danger{color:#bf3038;background:#fff0f1;border-color:#f3a7ac}
+.status-pill.neutral{color:#667085;background:#f6f7f9;border-color:#d7dce5}
+.card{background:var(--card);border:1px solid rgba(221,229,240,.85);border-radius:18px;box-shadow:0 12px 34px rgba(33,62,105,.08)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);padding:20px 10px;margin-bottom:14px}
+.metric{display:grid;grid-template-columns:54px 1fr;gap:15px;align-items:center;padding:6px 28px;min-width:0}
+.metric+.metric{border-left:1px solid var(--line)}
+.metric-icon{display:grid;place-items:center;width:50px;height:50px;border-radius:50%;font-size:24px;font-weight:900;background:#edf5ff;color:var(--blue)}
+.metric:nth-child(2) .metric-icon{background:#f4efff;color:var(--purple)}
+.metric:nth-child(3) .metric-icon{background:#fff5e7;color:var(--amber)}
+.metric-label{font-size:14px;color:var(--muted);margin-bottom:5px}
+.metric-value{font-size:clamp(18px,2vw,23px);font-weight:850;line-height:1.2;overflow-wrap:anywhere}
+.metric-note{margin-top:7px;color:var(--muted);font-size:12px;font-weight:650}
+.metric-note.good{color:#069653;font-size:14px}
+.progress{height:8px;background:#e9eef5;border-radius:99px;overflow:hidden;margin-top:9px}
+.progress span{display:block;height:100%;width:${usagePercent}%;background:linear-gradient(90deg,#258cff,#1677ff);border-radius:inherit}
+.notice{display:flex;align-items:center;gap:16px;margin:14px 0;padding:17px 22px;border-radius:16px;background:#fff8e8;border:1px solid #f5bd45;color:#6f4810}
+.notice.danger{background:#fff1f2;border-color:#f2a1a6;color:#8f252b}
+.notice-icon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:12px;background:#ffedc2;color:#e98300;font-size:21px;font-weight:900}
+.notice.danger .notice-icon{background:#ffdfe1;color:var(--red)}
+.notice b{display:block;margin-bottom:3px}.notice p{margin:0;font-size:14px;line-height:1.5}
+.dashboard{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:14px;margin-top:14px}
+.section{padding:20px}
+.section h2{font-size:19px;margin:0 0 15px;letter-spacing:-.015em}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.action{appearance:none;border:0;display:grid;grid-template-columns:34px 1fr 20px;align-items:center;gap:10px;min-height:76px;padding:14px 18px;border-radius:14px;color:#fff;text-decoration:none;text-align:left;font-weight:800;cursor:pointer;box-shadow:0 9px 22px rgba(31,104,229,.16);transition:transform .18s ease,filter .18s ease}
+.action:hover{transform:translateY(-2px);filter:brightness(1.04)}
+.action:focus-visible{outline:3px solid #93c5fd;outline-offset:3px}
+.action:disabled,.action.disabled{opacity:.48;cursor:not-allowed;transform:none}
+.action-blue{background:linear-gradient(135deg,#1687ff,#126be6)}
+.action-purple{background:linear-gradient(135deg,#8158ef,#6939db)}
+.action-green{background:linear-gradient(135deg,#18bc70,#0da45d)}
+.action-sky{background:linear-gradient(135deg,#3f93f9,#2677e7)}
+.action-icon{font-size:27px;font-weight:500}.action-arrow{font-size:28px;text-align:right;font-weight:400}
+.side{display:grid;gap:14px}
+.health-list{display:grid;gap:13px}
+.health-row{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:10px;font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #e7f8ef}
+.dot.warning{background:var(--amber);box-shadow:0 0 0 4px #fff3d8}
+.dot.danger,.dot.neutral{background:var(--red);box-shadow:0 0 0 4px #ffe6e8}
+.health-value{color:#079250;font-weight:800;text-align:right}
+.security{display:flex;gap:12px;padding:12px;border-radius:12px;background:#f4f0ff;color:#4f3b88;font-size:13px;line-height:1.5}
+.security strong{font-size:18px;color:var(--purple)}
+.faq{padding:18px 20px;margin-top:14px}
+.faq h2{font-size:19px;margin:0 0 12px}
+details{border-top:1px solid var(--line)}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;list-style:none;padding:14px 2px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:15px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"⌄";color:var(--blue);font-size:18px;transition:transform .18s}
+details[open] summary::after{transform:rotate(180deg)}
+details p{margin:0;padding:0 2px 15px;color:var(--muted);font-size:14px;line-height:1.55}
+.support{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:14px;padding:16px;border-radius:15px;background:#eaf2fd;color:#2a4d83;text-decoration:none;font-weight:800}
+.support:hover{background:#dfeafb}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);padding:12px 18px;border-radius:12px;background:#102044;color:#fff;font-weight:750;box-shadow:0 15px 40px #10204445;opacity:0;pointer-events:none;transition:.22s;z-index:30}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.footer{text-align:center;color:#8792a8;font-size:12px;margin-top:18px}
+@media(max-width:820px){.summary{grid-template-columns:1fr}.metric{padding:14px 18px}.metric+.metric{border-left:0;border-top:1px solid var(--line)}.dashboard{grid-template-columns:1fr}}
+@media(max-width:560px){.page{width:min(100% - 20px,1160px);padding-top:20px}.brand{align-items:center}.logo{width:48px;height:48px}.brand p{font-size:13px}.summary{padding:7px}.metric{grid-template-columns:44px 1fr;gap:12px}.metric-icon{width:42px;height:42px;font-size:20px}.actions{grid-template-columns:1fr}.section{padding:16px}.notice{align-items:flex-start;padding:15px}.health-row{grid-template-columns:12px 1fr}.health-value{grid-column:2;text-align:left}.support{text-align:center;font-size:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
 <body>
+<main class="page">
+  <header class="hero">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5c0 4.7-2.9 8.4-7 10-4.1-1.6-7-5.3-7-10V6l7-3Z" stroke="currentColor" stroke-width="2"/><path d="m8.8 12 2.1 2.1 4.5-4.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span><h1>${escapeHtml(CONFIG.PROFILE_NAME)}</h1><p>Quản lý tài khoản VPN</p></span>
+    </div>
+    <div><span class="status-pill ${statusTone}">${escapeHtml(statusLabel)}</span></div>
+  </header>
 
-<h2>${escapeHtml(CONFIG.PROFILE_NAME)} – Chọn app để đồng bộ</h2>
+  <section class="card summary" aria-label="Thông tin tài khoản">
+    <div class="metric">
+      <span class="metric-icon" aria-hidden="true">▤</span>
+      <div><div class="metric-label">Dung lượng</div><div class="metric-value">${escapeHtml(used)} GB / ${escapeHtml(total)} GB</div><div class="progress"><span></span></div><div class="metric-note">Đã sử dụng ${usagePercent}%</div></div>
+    </div>
+    <div class="metric">
+      <span class="metric-icon" aria-hidden="true">□</span>
+      <div><div class="metric-label">Ngày hết hạn</div><div class="metric-value">${escapeHtml(expiryText)}</div><div class="metric-note good">${escapeHtml(daysLeftText)}</div></div>
+    </div>
+    <div class="metric">
+      <span class="metric-icon" aria-hidden="true">♛</span>
+      <div><div class="metric-label">Gói dịch vụ</div><div class="metric-value">${escapeHtml(accountReady ? userInfo.plan || "-" : "-")}</div><div class="metric-note">${escapeHtml(accountName)}</div></div>
+    </div>
+  </section>
 
-<div class="card warn"><b>Lưu ý:</b>
-  <div class="muted">
-    Trang chủ Website đã đổi thành: <a href="https://vpn.shoptuantruong.com" style="color:#1E90FF; font-weight:bold;">
-VPN.SHOPTUANTRUONG.COM
-</a><br>
-    Nếu bấm nút mà không mở/import: hãy thử lại bằng Safari/Chrome.<br>
-    Với Clash Android/Clash Meta Android: nếu deeplink không hoạt động, hãy thử bấm lại liên kết bằng trình duyệt mặc định hoặc Chrome.
+  <section class="notice ${statusTone === "danger" ? "danger" : ""}" role="status">
+    <span class="notice-icon" aria-hidden="true">!</span><div><b>Lưu ý</b><p>${escapeHtml(alertText)}</p></div>
+  </section>
+
+  <div class="dashboard">
+    <section class="card section">
+      <h2>Thao tác nhanh</h2>
+      <div class="actions">
+        ${copyAction}
+        ${manageAction}
+        <a class="action action-green" href="${escapeHtml(supportUrl)}" target="_blank" rel="noopener noreferrer"><span class="action-icon">▦</span><span>Gia hạn dịch vụ</span><span class="action-arrow">›</span></a>
+        <a class="action action-sky" href="${escapeHtml(supportUrl)}" target="_blank" rel="noopener noreferrer"><span class="action-icon">◉</span><span>Liên hệ hỗ trợ</span><span class="action-arrow">›</span></a>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="card section">
+        <h2>Trạng thái dịch vụ</h2>
+        <div class="health-list">
+          <div class="health-row"><span class="dot ${accountReady ? "" : "danger"}"></span><span>Dữ liệu tài khoản</span><span class="health-value">${accountReady ? "Đã cập nhật" : "Chưa xác định"}</span></div>
+          <div class="health-row"><span class="dot ${statusTone === "success" ? "" : statusTone}"></span><span>Trạng thái gói</span><span class="health-value">${escapeHtml(statusLabel)}</span></div>
+          <div class="health-row"><span class="dot"></span><span>Cập nhật gần nhất</span><span class="health-value">Vừa cập nhật</span></div>
+        </div>
+      </section>
+      <section class="card section">
+        <h2>Bảo vệ tài khoản</h2>
+        <div class="security"><strong>◆</strong><span>Không chia sẻ link đăng ký với người khác. Hãy liên hệ hỗ trợ nếu nghi ngờ link đã bị lộ.</span></div>
+      </section>
+    </aside>
   </div>
-</div>
+  <section class="card faq">
+    <h2>Hướng dẫn thường gặp</h2>
+    <details><summary>Làm gì khi không có mạng?</summary><p>Hãy cập nhật lại đăng ký, đổi sang máy chủ khác và kiểm tra kết nối Internet gốc. Nếu vẫn lỗi, gửi ảnh thông báo cho bộ phận hỗ trợ.</p></details>
+    <details><summary>Cách đổi sang thiết bị mới</summary><p>Mở Quản lý thiết bị, xóa thiết bị cũ không còn sử dụng rồi nhập lại link đăng ký trên thiết bị mới.</p></details>
+    <details><summary>Khi nào cần cập nhật đăng ký?</summary><p>Hãy cập nhật sau khi gia hạn, khi danh sách máy chủ thay đổi hoặc khi bộ phận hỗ trợ yêu cầu.</p></details>
+  </section>
 
-
-${accountInfoHtml}
-<div class="card">
-  <h3>Đồng bộ nhanh</h3>
-  <div class="row">
-    <a class="btn primary" href="${escapeHtml(shadowrocket_ok)}">Shadowrocket</a>
-    <a class="btn primary" href="${escapeHtml(happ_install)}">Happ</a>
-    <a class="btn" href="${escapeHtml(incy_install)}">INCY</a>
-    <a class="btn" href="${escapeHtml(v2rayng_new)}">v2rayNG</a>
-    <a class="btn" href="${escapeHtml(v2box_link)}">V2Box</a>
-    <a class="btn" href="${escapeHtml(singbox)}">sing-box</a>
-    <a class="btn" href="${escapeHtml(hiddify_clash)}">Hiddify</a>
-    <a class="btn" href="${escapeHtml(clash_install)}">Clash for Android</a>
-    <a class="btn" href="${escapeHtml(clash_install)}">Clash Meta</a>
-    <a class="btn" href="${escapeHtml(karing_install)}">Karing</a>
-  </div>
-</div>
-
-
+  <a class="support" href="${escapeHtml(supportUrl)}" target="_blank" rel="noopener noreferrer">◉ Cần trợ giúp? Đội ngũ hỗ trợ luôn sẵn sàng. ›</a>
+  <footer class="footer">${escapeHtml(CONFIG.PROFILE_NAME)} · Quản lý tài khoản VPN · An toàn kết nối</footer>
+</main>
+<div id="copyToast" class="toast" role="status" aria-live="polite">Đã sao chép link đăng ký!</div>
+<script>
+const subscriptionLink = ${JSON.stringify(subscriptionLink)};
+async function copySubscription() {
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(subscriptionLink);
+    copied = true;
+  } catch (_) {
+    const input = document.createElement("textarea");
+    input.value = subscriptionLink;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    copied = document.execCommand("copy");
+    input.remove();
+  }
+  const toast = document.getElementById("copyToast");
+  toast.textContent = copied ? "Đã sao chép link đăng ký!" : "Không thể sao chép. Vui lòng thử lại.";
+  toast.classList.add("show");
+  window.setTimeout(() => toast.classList.remove("show"), 2200);
+}
+</script>
 </body>
 </html>`;
 }
