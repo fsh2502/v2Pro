@@ -60,6 +60,14 @@ namespace {
     check($query['pcs'] === $sha && $query['vcn'] === 'node.example.com' && !isset($query['insecure']), 'VLESS subscription pin');
     $vmess = json_decode(base64_decode(substr(trim(\App\Utils\Helper::buildVmessUri($uuid, $server)), 8)), true);
     check($vmess['pcs'] === $sha && !isset($vmess['allowInsecure']), 'VMess JSON pin');
+    $shadowrocketPin = strtoupper(implode(':', str_split($sha, 2)));
+    parse_str(parse_url(trim(\App\Protocols\Shadowrocket::buildVmess($uuid, $server)), PHP_URL_QUERY), $shadowrocket);
+    check($shadowrocket['hpkp'] === $shadowrocketPin && $shadowrocket['peer'] === 'node.example.com'
+        && !isset($shadowrocket['allowInsecure']), 'Shadowrocket VMess pin');
+    $trojanServer = array_replace($server, ['protocol' => 'trojan']);
+    parse_str(parse_url(trim(\App\Protocols\Shadowrocket::buildTrojan($uuid, $trojanServer)), PHP_URL_QUERY), $shadowrocketTrojan);
+    check($shadowrocketTrojan['hpkp'] === $shadowrocketPin && $shadowrocketTrojan['peer'] === 'node.example.com'
+        && !isset($shadowrocketTrojan['allowInsecure']) && !isset($shadowrocketTrojan['pcs']), 'Shadowrocket Trojan pin');
     $incy = new \App\Protocols\Incy(['uuid' => $uuid], []);
     $incyStreamMethod = new \ReflectionMethod(\App\Protocols\Incy::class, 'buildStreamSettings');
     $incyStreamMethod->setAccessible(true);

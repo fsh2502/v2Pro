@@ -3,6 +3,7 @@
 namespace App\Protocols;
 
 use App\Utils\Helper;
+use App\Utils\TlsPin;
 
 class Shadowrocket
 {
@@ -31,6 +32,8 @@ class Shadowrocket
         foreach ($this->servers as $server) {
             if ($server['type'] === 'vmess' || ($server['type'] === 'v2node' && $server['protocol'] === 'vmess')) {
                 $uri .= self::buildVmess($user['uuid'], $server);
+            } else if ($server['type'] === 'trojan' || ($server['type'] === 'v2node' && $server['protocol'] === 'trojan')) {
+                $uri .= self::buildTrojan($user['uuid'], $server);
             } else {
                 $uri .= Helper::buildUri($this->user['uuid'], $server);
             }
@@ -82,10 +85,16 @@ class Shadowrocket
                 $config['host'] = $server['host'];
             }
         }
+        $config = TlsPin::shadowrocket($config, $server);
         $query = http_build_query($config, '', '&', PHP_QUERY_RFC3986);
         $uri = "vmess://{$userinfo}?{$query}";
         $uri .= "\r\n";
         return $uri;
+    }
+
+    public static function buildTrojan($password, $server)
+    {
+        return Helper::buildTrojanUri($password, $server, true);
     }
 
 }

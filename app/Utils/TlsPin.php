@@ -39,6 +39,23 @@ class TlsPin
         return $config;
     }
 
+    public static function shadowrocket(array $config, array $server): array
+    {
+        $pin = self::resolve($server);
+        if ($pin['certificate'] === '') return $config;
+
+        // Shadowrocket calls its certificate SHA-256 pin `hpkp` and uses
+        // the OpenSSL-style, colon-separated fingerprint in share links.
+        $config['hpkp'] = strtoupper(implode(':', str_split($pin['certificate'], 2)));
+        if ($pin['name'] !== '') $config['peer'] = $pin['name'];
+        unset(
+            $config['pcs'], $config['vcn'],
+            $config['insecure'], $config['allowInsecure'], $config['allow_insecure']
+        );
+
+        return $config;
+    }
+
     public static function mihomo(array $proxy, array $server, bool $stash = false): array
     {
         $pin = self::resolve($server);

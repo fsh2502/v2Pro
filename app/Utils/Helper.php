@@ -358,7 +358,7 @@ class Helper
         return self::buildUriString('vless', $uuid, $server, $name, TlsPin::uri($config, $server));
     }
 
-    public static function buildTrojanUri($password, $server)
+    public static function buildTrojanUri($password, $server, bool $shadowrocket = false)
     {
         $tlsSettings = $server['tls_settings'] ?? [];
         $config = [
@@ -381,7 +381,9 @@ class Helper
                 }
             }
         }
-        $config = TlsPin::uri($config, $server);
+        $config = $shadowrocket
+            ? TlsPin::shadowrocket($config, $server)
+            : TlsPin::uri($config, $server);
         $query = http_build_query($config);
         return "trojan://{$password}@" . self::formatHost($server['host']) . ":{$server['port']}?{$query}#". rawurlencode($server['name']) . "\r\n";
     }
