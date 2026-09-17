@@ -25,6 +25,9 @@ class TlsPin
 
     public static function uri(array $config, array $server, bool $hysteria = false): array
     {
+        if (!$hysteria) {
+            unset($config['insecure'], $config['allowInsecure'], $config['allow_insecure']);
+        }
         $pin = self::resolve($server);
         if ($pin['certificate'] === '') return $config;
         if ($hysteria) {
@@ -81,6 +84,7 @@ class TlsPin
 
     public static function xray(array $tls, array $server): array
     {
+        unset($tls['allowInsecure']);
         $pin = self::resolve($server);
         if ($pin['certificate'] === '') {
             return $tls;
@@ -90,8 +94,6 @@ class TlsPin
         if ($pin['name'] !== '') {
             $tls['verifyPeerCertByName'] = $pin['name'];
         }
-        unset($tls['allowInsecure']);
-
         return $tls;
     }
 }
