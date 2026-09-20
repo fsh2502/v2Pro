@@ -50,7 +50,8 @@ try {
         $gb = 1073741824;
         $usedData = round(($user['u'] + $user['d']) / $gb, 2);
         $totalData = round($user['transfer_enable'] / $gb, 2);
-        $expire = ($user['expired_at'] && $user['expired_at'] != 0) ? date('d/m/Y', $user['expired_at']) : 'Vĩnh viễn';
+        $expiredAt = (int) ($user['expired_at'] ?? 0);
+        $expire = $expiredAt > 0 ? date('d/m/Y H:i:s', $expiredAt) : 'Vĩnh viễn';
         $planName = $user['plan_name'] ? $user['plan_name'] : 'Chưa có gói';
 
         echo json_encode([
@@ -60,7 +61,8 @@ try {
             'plan' => $planName,
             'used' => $usedData,
             'total' => $totalData,
-            'expire' => $expire
+            'expire' => $expire,
+            'expired_at' => $expiredAt > 0 ? $expiredAt : null
         ]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Token không tồn tại']);

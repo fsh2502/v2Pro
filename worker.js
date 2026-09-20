@@ -9,6 +9,7 @@ const CONFIG = {
   SUPPORT_URL: "",
   ALERT_COOLDOWN: 1 * 60 * 60 * 1000,
   ADMIN_PASSWORD: ".",
+  TIME_ZONE: "Asia/Tokyo",
 };
 
 export default {
@@ -119,6 +120,51 @@ function parseTrafficGb(value) {
   const normalized = String(value ?? "").trim().replace(/,/g, "");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseExpiry(value) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const text = String(value).trim();
+  if (/^\d+$/.test(text)) {
+    const numeric = Number(text);
+    if (!Number.isFinite(numeric) || numeric <= 0) return null;
+    return numeric > 1000000000000 ? numeric : numeric * 1000;
+  }
+
+  // Legacy API values use day/month/year and may not contain a time.
+  // A date without a time remains valid until the end of that day in Tokyo.
+  const dayFirst = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (dayFirst) {
+    const [, day, month, year, hour = "23", minute = "59", second = "59"] = dayFirst;
+    const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour.padStart(2, "0")}:${minute}:${second}+09:00`;
+    const parsed = Date.parse(iso);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatExpiry(value) {
+  const expiryTime = parseExpiry(value);
+  if (expiryTime === null) {
+    const fallback = String(value ?? "").trim();
+    return fallback || "-";
+  }
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: CONFIG.TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(expiryTime));
+  const valueOf = (type) => parts.find((part) => part.type === type)?.value || "";
+  return `${valueOf("day")}/${valueOf("month")}/${valueOf("year")} ${valueOf("hour")}:${valueOf("minute")}:${valueOf("second")}`;
 }
 
 async function getUserInfo(token) {
@@ -571,7 +617,7 @@ function HTML_ADMIN_DASHBOARD(token, connectedDevices, spamLogs, limitCount, use
   if (token) {
     let uiData =
       userInfo && userInfo.success
-        ? `<p><b>ID:</b> ${escapeHtml(userInfo.id)}  |  <b>Mail:</b> ${escapeHtml(userInfo.email)}</p><p><b>Gói:</b> <span class="text-green">${escapeHtml(userInfo.plan)}</span></p><p><b>Data:</b> ${escapeHtml(userInfo.used)}GB / ${escapeHtml(userInfo.total)}GB</p><p><b>HSD:</b> ${escapeHtml(userInfo.expire)}</p>`
+        ? `<p><b>ID:</b> ${escapeHtml(userInfo.id)}  |  <b>Mail:</b> ${escapeHtml(userInfo.email)}</p><p><b>Gói:</b> <span class="text-green">${escapeHtml(userInfo.plan)}</span></p><p><b>Data:</b> ${escapeHtml(userInfo.used)}GB / ${escapeHtml(userInfo.total)}GB</p><p><b>HSD:</b> ${escapeHtml(formatExpiry(Number(userInfo.expired_at) > 0 ? userInfo.expired_at : userInfo.expire))}</p>`
         : `<p class="text-red">${escapeHtml(userInfo?.msg || "Không lấy được thông tin CSDL")}</p>`;
 
     let listHTML = connectedDevices.map((r, idx) => buildDeviceHTML(r, idx, token, true)).join("");
@@ -695,22 +741,10 @@ function HTML_SYNC_SUB_PAGE(origin, token, userInfo) {
   const used = accountReady && Number.isFinite(Number(userInfo.used)) ? Math.max(0, Number(userInfo.used)) : 0;
   const total = accountReady && Number.isFinite(Number(userInfo.total)) ? Math.max(0, Number(userInfo.total)) : 0;
   const usagePercent = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-  const expiryText = accountReady ? String(userInfo.expire || "-") : "-";
-
-  function parseExpiry(value) {
-    if (value === null || value === undefined || value === "") return null;
-    const text = String(value).trim();
-    if (/^\d+$/.test(text)) {
-      const numeric = Number(text);
-      return numeric > 1000000000000 ? numeric : numeric * 1000;
-    }
-    const dayFirst = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-    if (dayFirst) return new Date(Number(dayFirst[3]), Number(dayFirst[2]) - 1, Number(dayFirst[1]), 23, 59, 59).getTime();
-    const parsed = Date.parse(text);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-
-  const expiryTime = accountReady ? parseExpiry(userInfo.expire) : null;
+  const expiryValue = accountReady && Number(userInfo.expired_at) > 0 ? userInfo.expired_at : accountReady ? userInfo.expire : null;
+  const expiryText = accountReady ? formatExpiry(expiryValue) : "-";
+  const expiryTime = accountReady ? parseExpiry(expiryValue) : null;
+  const isExpired = expiryTime !== null && expiryTime <= Date.now();
   const daysLeft = expiryTime === null ? null : Math.ceil((expiryTime - Date.now()) / 86400000);
   let statusLabel = accountReady ? "Tài khoản đang hoạt động" : "Chưa xác định tài khoản";
   let statusTone = accountReady ? "success" : "neutral";
@@ -724,7 +758,7 @@ function HTML_SYNC_SUB_PAGE(origin, token, userInfo) {
     statusLabel = "Không tải được tài khoản";
     statusTone = "danger";
     alertText = userInfo?.msg || "Không lấy được thông tin tài khoản. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
-  } else if (daysLeft !== null && daysLeft < 0) {
+  } else if (isExpired) {
     statusLabel = "Tài khoản đã hết hạn";
     statusTone = "danger";
     alertText = "Gói dịch vụ đã hết hạn. Vui lòng gia hạn để tiếp tục kết nối.";
@@ -740,7 +774,7 @@ function HTML_SYNC_SUB_PAGE(origin, token, userInfo) {
       : `Bạn đã sử dụng ${usagePercent}% dung lượng. Hãy kiểm tra gói dịch vụ để tránh gián đoạn kết nối.`;
   }
 
-  const daysLeftText = daysLeft === null ? "Chưa xác định" : daysLeft < 0 ? "Đã hết hạn" : `Còn ${daysLeft} ngày`;
+  const daysLeftText = daysLeft === null ? "Chưa xác định" : isExpired ? "Đã hết hạn" : `Còn ${Math.max(0, daysLeft)} ngày`;
   const subscriptionLink = `${origin}/api/v1/client/subscribe?token=${encodeURIComponent(safeToken)}`;
   const manageUrl = `/manage?token=${encodeURIComponent(safeToken)}`;
   const supportUrl = CONFIG.SUPPORT_URL || "https://vpn.shoptuantruong.com";
