@@ -15,6 +15,7 @@ namespace {
     });
     function abort($status, $message) { throw new \RuntimeException($message, $status); }
     function config($key, $default = null) { return $default; }
+    function base_path($path = '') { return dirname(__DIR__) . ($path === '' ? '' : '/' . $path); }
     function check($condition, $message) {
         if (!$condition) throw new \RuntimeException($message);
         $GLOBALS['checks']++;
@@ -107,6 +108,22 @@ namespace {
         check(isset($proxy['tls']['certificate_public_key_sha256']) === $supported, 'sing-box version ' . $version);
         if ($supported) check($proxy['tls']['certificate_public_key_sha256'] === [$spki], 'sing-box uses SPKI, not certificate');
     }
+    $loadConfigMethod = new \ReflectionMethod(\App\Protocols\Singbox\Singbox::class, 'loadConfig');
+    $loadConfigMethod->setAccessible(true);
+    $legacyRenderer = new \App\Protocols\Singbox\Singbox(['uuid' => $uuid], [], ['version' => '1.13.0']);
+    $legacyConfig = $loadConfigMethod->invoke($legacyRenderer);
+    check(isset($legacyConfig['route']['rule_set'][0]['download_detour']), 'sing-box 1.13 keeps legacy rule-set detour');
+    check(!isset($legacyConfig['http_clients']), 'sing-box 1.13 does not receive 1.14 HTTP clients');
+    $modernRenderer = new \App\Protocols\Singbox\Singbox(['uuid' => $uuid], [], ['version' => '1.14.0']);
+    $modernConfig = $loadConfigMethod->invoke($modernRenderer);
+    foreach ($modernConfig['route']['rule_set'] as $ruleSet) {
+        check(!isset($ruleSet['download_detour']), 'sing-box 1.14 removes every deprecated rule-set detour');
+        check($ruleSet['http_client'] === 'rule-set-download', 'sing-box 1.14 assigns every rule-set HTTP client');
+    }
+    check($modernConfig['route']['rule_set'][0]['http_client'] === 'rule-set-download', 'sing-box 1.14 rule-set uses HTTP client');
+    check(count($modernConfig['http_clients']) === 1, 'sing-box 1.14 reuses one HTTP client for the shared detour');
+    check($modernConfig['http_clients'][0]['detour'] === $modernConfig['outbounds'][1]['tag'], 'HTTP client preserves download outbound');
+    check($modernConfig['route']['default_http_client'] === 'rule-set-download', 'sing-box 1.14 has explicit default HTTP client');
     $trojanWssServer = array_replace($server, [
         'protocol' => 'trojan',
         'network' => 'ws',

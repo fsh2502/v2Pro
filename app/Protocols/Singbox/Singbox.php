@@ -41,7 +41,90 @@ class Singbox
         $customConfig = base_path('resources/rules/custom.sing-box.json');
         $jsonData = file_exists($customConfig) ? file_get_contents($customConfig) : file_get_contents($defaultConfig);
 
-        return json_decode($jsonData, true);
+        $config = json_decode($jsonData, true);
+        if ($this->version && version_compare($this->version, '1.14.0', '>=')) {
+            $config = $this->migrateRuleSetHttpClients($config);
+        }
+
+        return $config;
+    }
+
+    /**
+     * sing-box 1.14 replaces a remote rule-set's download_detour with a
+     * shared HTTP client. Keep the stored template compatible with older
+     * cores and migrate only the generated configuration for new cores.
+     */
+    private function migrateRuleSetHttpClients(array $config): array
+    {
+        if (empty($config['route']['rule_set']) || !is_array($config['route']['rule_set'])) {
+            return $config;
+        }
+
+        $httpClients = isset($config['http_clients']) && is_array($config['http_clients'])
+            ? $config['http_clients']
+            : [];
+        $usedTags = [];
+        $detourClients = [];
+        $defaultClient = null;
+
+        foreach ($httpClients as $client) {
+            if (!is_array($client) || empty($client['tag'])) {
+                continue;
+            }
+            $tag = (string) $client['tag'];
+            $usedTags[$tag] = true;
+            if (array_key_exists('detour', $client)) {
+                $detourClients[(string) $client['detour']] = $tag;
+            }
+            if ($defaultClient === null) {
+                $defaultClient = $tag;
+            }
+        }
+
+        foreach ($config['route']['rule_set'] as &$ruleSet) {
+            if (!is_array($ruleSet) || !array_key_exists('download_detour', $ruleSet)) {
+                continue;
+            }
+
+            if (!empty($ruleSet['http_client'])) {
+                if (is_string($ruleSet['http_client']) && $defaultClient === null) {
+                    $defaultClient = $ruleSet['http_client'];
+                }
+                unset($ruleSet['download_detour']);
+                continue;
+            }
+
+            $detour = (string) $ruleSet['download_detour'];
+            if (!isset($detourClients[$detour])) {
+                $baseTag = 'rule-set-download';
+                $tag = $baseTag;
+                $suffix = 2;
+                while (isset($usedTags[$tag])) {
+                    $tag = $baseTag . '-' . $suffix++;
+                }
+
+                $httpClients[] = [
+                    'tag' => $tag,
+                    'detour' => $detour,
+                ];
+                $usedTags[$tag] = true;
+                $detourClients[$detour] = $tag;
+            }
+
+            $ruleSet['http_client'] = $detourClients[$detour];
+            $defaultClient = $defaultClient ?? $ruleSet['http_client'];
+            unset($ruleSet['download_detour']);
+        }
+        unset($ruleSet);
+
+        if ($httpClients !== []) {
+            $config['http_clients'] = $httpClients;
+        }
+        if ($defaultClient !== null && empty($config['route']['default_http_client'])) {
+            $config['route']['default_http_client'] = $defaultClient;
+        }
+
+        return $config;
     }
 
     protected function buildProxies()
