@@ -19,6 +19,8 @@ class ClientController extends Controller
         $flag = $request->input('flag')
             ?? ($_SERVER['HTTP_USER_AGENT'] ?? '');
         $flag = strtolower($flag);
+        $clientIdentity = $flag . ' ' . strtolower((string) $request->userAgent());
+        $isHiddify = strpos($clientIdentity, 'hiddify') !== false;
         $user = $request->user;
         // account not expired and is not banned.
         $userService = new UserService();
@@ -26,6 +28,13 @@ class ClientController extends Controller
             $serverService = new ServerService();
             $servers = $serverService->getAvailableServers($user);
             if($flag) {
+                // Hiddify advertises compatible cores such as sing-box in its
+                // User-Agent. Prefer the app marker before the core marker.
+                if ($isHiddify) {
+                    return (new \App\Protocols\Hiddify($user, $servers, [
+                        'singbox_version' => $this->getSingboxVersion($clientIdentity),
+                    ]))->handle();
+                }
                 if (!strpos($flag, 'sing')) {
                     $this->setSubscribeInfoToServers($servers, $user);
                     foreach (array_reverse(glob(app_path('Protocols') . '/*.php')) as $file) {
@@ -37,10 +46,7 @@ class ClientController extends Controller
                     }
                 }
                 if (strpos($flag, 'sing') !== false) {
-                    $version = null;
-                    if (preg_match('/sing-box[\s\/]+(\d+\.\d+\.\d+)/i', $flag . ' ' . $request->userAgent(), $matches)) {
-                        $version = $matches[1];
-                    }
+                    $version = $this->getSingboxVersion($clientIdentity);
                     if (!is_null($version) && version_compare($version, '1.12.0', '>=')) {
                         $class = new Singbox($user, $servers, ['version' => $version]);
                     } else {
@@ -62,6 +68,15 @@ class ClientController extends Controller
             $class = new \App\Protocols\Incy($user, []);
             return $class->handle();
         }
+    }
+
+    private function getSingboxVersion(string $client): ?string
+    {
+        if (preg_match('/sing-box[\s\/]+v?(\d+\.\d+\.\d+)/i', $client, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     private function setSubscribeInfoToServers(&$servers, $user)

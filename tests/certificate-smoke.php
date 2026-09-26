@@ -107,6 +107,27 @@ namespace {
         check(isset($proxy['tls']['certificate_public_key_sha256']) === $supported, 'sing-box version ' . $version);
         if ($supported) check($proxy['tls']['certificate_public_key_sha256'] === [$spki], 'sing-box uses SPKI, not certificate');
     }
+    $trojanWssServer = array_replace($server, [
+        'protocol' => 'trojan',
+        'network' => 'ws',
+        'network_settings' => [
+            'path' => '/trojan-ws',
+            'headers' => ['Host' => 'node.example.com'],
+        ],
+    ]);
+    $renderer = new \App\Protocols\Singbox\Singbox(['uuid' => $uuid], [$trojanWssServer], ['version' => '1.13.0']);
+    $trojanWss = $method->invoke($renderer)[0];
+    check($trojanWss['tls']['enabled'] === true && $trojanWss['tls']['insecure'] === false, 'sing-box Trojan WSS verifies pinned TLS');
+    check($trojanWss['tls']['certificate_public_key_sha256'] === [$spki], 'sing-box Trojan WSS uses SPKI pin');
+    check($trojanWss['transport']['type'] === 'ws' && $trojanWss['transport']['path'] === '/trojan-ws', 'sing-box Trojan WSS transport');
+    check($trojanWss['transport']['headers']['Host'] === ['node.example.com'], 'sing-box Trojan WSS host');
+    $hiddify = new \App\Protocols\Hiddify(['uuid' => $uuid], [$trojanWssServer]);
+    $hiddifyRendererMethod = new \ReflectionMethod(\App\Protocols\Hiddify::class, 'singboxRenderer');
+    $hiddifyRendererMethod->setAccessible(true);
+    $hiddifyRenderer = $hiddifyRendererMethod->invoke($hiddify);
+    $hiddifyTrojanWss = $method->invoke($hiddifyRenderer)[0];
+    check($hiddifyTrojanWss['tls']['certificate_public_key_sha256'] === [$spki], 'Hiddify receives sing-box SPKI pin');
+    check($hiddifyTrojanWss['transport']['type'] === 'ws', 'Hiddify receives native Trojan WSS config');
     $reality = array_replace($server, ['tls' => 2]);
     check(\App\Utils\TlsPin::resolve($reality)['certificate'] === '', 'No REALITY pin');
     check(\App\Utils\TlsPin::resolve(array_replace($server, ['tls' => 0]))['certificate'] === '', 'No plaintext pin');

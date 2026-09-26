@@ -7,6 +7,7 @@ use App\Services\ServerService;
 use App\Services\UserService;
 use App\Utils\CacheKey;
 use App\Utils\Helper;
+use App\Utils\RealityCompatibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use MessagePack\Packer;
@@ -202,13 +203,17 @@ class UniProxyController extends Controller
                 ];
                 break;
             case 'vless':
+                $tlsSettings = $this->nodeInfo->tls_settings;
+                if ((int) $this->nodeInfo->tls === 2) {
+                    $tlsSettings = RealityCompatibility::normalizeTlsSettings($tlsSettings);
+                }
                 $response = [
                     'server_port' => $this->nodeInfo->server_port,
                     'network' => $this->nodeInfo->network,
                     'networkSettings' => $this->nodeInfo->network_settings,
                     'tls' => $this->nodeInfo->tls,
                     'flow' => $this->nodeInfo->flow,
-                    'tls_settings' => $this->nodeInfo->tls_settings,
+                    'tls_settings' => $tlsSettings,
                     'encryption' => $this->nodeInfo->encryption,
                     'encryption_settings' => $this->nodeInfo->encryption_settings
                 ];

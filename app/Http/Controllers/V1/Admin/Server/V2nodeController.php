@@ -7,6 +7,7 @@ use App\Models\ServerV2node;
 use Illuminate\Http\Request;
 use ParagonIE_Sodium_Compat as SodiumCompat;
 use App\Utils\Helper;
+use App\Utils\RealityCompatibility;
 
 class V2nodeController extends Controller
 {
@@ -81,6 +82,7 @@ class V2nodeController extends Controller
             if (!isset($params['tls_settings']['server_port'])) {
                 $params['tls_settings']['server_port'] = "443";
             }
+            $params['tls_settings'] = RealityCompatibility::normalizeTlsSettings($params['tls_settings']);
         }
         if (isset($params['network_settings'])) {
             $ns = $params['network_settings'];

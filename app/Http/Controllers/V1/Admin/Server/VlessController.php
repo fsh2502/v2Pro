@@ -7,6 +7,7 @@ use App\Models\ServerVless;
 use Illuminate\Http\Request;
 use ParagonIE_Sodium_Compat as SodiumCompat;
 use App\Utils\Helper;
+use App\Utils\RealityCompatibility;
 
 class VlessController extends Controller
 {
@@ -48,6 +49,7 @@ class VlessController extends Controller
             if (!isset($params['tls_settings']['server_port'])) {
                 $params['tls_settings']['server_port'] = "443";
             }
+            $params['tls_settings'] = RealityCompatibility::normalizeTlsSettings($params['tls_settings']);
         }
         if ($params['network'] != 'tcp') {
             $params['flow'] = null;

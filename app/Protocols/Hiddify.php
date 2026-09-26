@@ -2,6 +2,7 @@
 
 namespace App\Protocols;
 
+use App\Protocols\Singbox\Singbox;
 use App\Utils\Helper;
 
 class Hiddify
@@ -12,6 +13,7 @@ class Hiddify
     private const MAX_PROFILE_TITLE_LENGTH = 64;
     private const MILLISECOND_TIMESTAMP_THRESHOLD = 32000000000;
     private const SKIPPED_SCHEMES = ['ssr'];
+    private const MINIMUM_SPKI_PIN_SINGBOX_VERSION = '1.13.0';
 
     private $servers;
     private $user;
@@ -26,20 +28,106 @@ class Hiddify
 
     public function handle()
     {
-        $appName = $this->getSubscriptionName();
-        $body = base64_encode($this->buildSubscriptionBody($appName));
-        $headers = $this->buildHeaders($appName);
+        return $this->singboxRenderer()->handle();
+    }
 
-        $response = response($body, 200);
-        foreach ($headers as $name => $value) {
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            $response->header($name, $value);
+    /**
+     * Hiddify uses a sing-box core and accepts native sing-box subscriptions.
+     * A share-link subscription cannot carry sing-box's SPKI pin field, so use
+     * the native renderer for Hiddify only.  The minimum schema version is
+     * deliberately scoped here and does not change exports for other clients.
+     */
+    protected function singboxRenderer(): Singbox
+    {
+        $version = (string) ($this->options['singbox_version'] ?? '');
+        if ($version === '' || version_compare($version, self::MINIMUM_SPKI_PIN_SINGBOX_VERSION, '<')) {
+            $version = self::MINIMUM_SPKI_PIN_SINGBOX_VERSION;
         }
 
-        return $response;
+        return new Singbox($this->user, $this->servers, ['version' => $version]);
+    }
+
+    /**
+     * Match zboard's URI cleanup while restoring an explicitly configured
+     * insecure-TLS setting. TlsPin::uri removes that flag for generic exports,
+     * but Hiddify needs it for self-signed certificates and TLS proxies.
+     */
+    private function normalizeHiddifyUri(string $uri, array $server): string
+    {
+        $uri = trim($uri);
+        $scheme = strtolower((string) parse_url($uri, PHP_URL_SCHEME));
+        if ($uri === '' || !in_array($scheme, ['vless', 'trojan'], true)) {
+            return $uri;
+        }
+
+        $parts = parse_url($uri);
+        if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            return $uri;
+        }
+
+        $query = [];
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        foreach ($query as $key => $value) {
+            if ($value === '' || $value === null) {
+                unset($query[$key]);
+            }
+        }
+        if ($scheme === 'vless') {
+            foreach (['headerType', 'quicSecurity'] as $key) {
+                if (isset($query[$key]) && strtolower((string) $query[$key]) === 'none') {
+                    unset($query[$key]);
+                }
+            }
+        }
+
+        if ($this->allowsInsecureTls($server)) {
+            if ($scheme === 'vless' && (int) ($server['tls'] ?? 0) !== 2) {
+                $query['insecure'] = '1';
+            }
+            if ($scheme === 'trojan') {
+                $query['allowInsecure'] = '1';
+            }
+        }
+
+        $host = (string) $parts['host'];
+        if (strpos($host, ':') !== false && $host[0] !== '[') {
+            $host = '[' . $host . ']';
+        }
+
+        $authority = '';
+        if (!empty($parts['user'])) {
+            $authority .= $parts['user'] . '@';
+        }
+        $authority .= $host;
+        if (isset($parts['port'])) {
+            $authority .= ':' . $parts['port'];
+        }
+
+        $normalized = $parts['scheme'] . '://' . $authority;
+        if ($query !== []) {
+            $normalized .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+        }
+        if (!empty($parts['fragment'])) {
+            $normalized .= '#' . $parts['fragment'];
+        }
+
+        return $normalized;
+    }
+
+    private function allowsInsecureTls(array $server): bool
+    {
+        $tlsSettings = $server['tls_settings'] ?? ($server['tlsSettings'] ?? []);
+        $value = $server['allow_insecure']
+            ?? ($server['allowInsecure']
+            ?? ($server['insecure']
+            ?? ($tlsSettings['allow_insecure']
+            ?? ($tlsSettings['allowInsecure'] ?? null))));
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 
     protected function buildSubscriptionBody($appName)

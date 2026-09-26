@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ServerService;
 use Illuminate\Http\Request;
 use App\Utils\Helper;
+use App\Utils\RealityCompatibility;
 
 class ServerController extends Controller
 {
@@ -52,6 +53,11 @@ class ServerController extends Controller
     // 后端获取配置
     public function config(Request $request)
     {
+        $tlsSettings = $this->nodeInfo->tls_settings;
+        if ((int) $this->nodeInfo->tls === 2) {
+            $tlsSettings = RealityCompatibility::normalizeTlsSettings($tlsSettings);
+        }
+
         $response = [
             'listen_ip' => $this->nodeInfo->listen_ip,
             'server_port' => $this->nodeInfo->server_port,
@@ -59,7 +65,7 @@ class ServerController extends Controller
             'network_settings' => $this->nodeInfo->network_settings,
             'protocol' => $this->nodeInfo->protocol,
             'tls' => $this->nodeInfo->tls,
-            'tls_settings' => $this->nodeInfo->tls_settings,
+            'tls_settings' => $tlsSettings,
             'encryption' => $this->nodeInfo->encryption,
             'encryption_settings' => $this->nodeInfo->encryption_settings,
             'flow' => $this->nodeInfo->flow,
