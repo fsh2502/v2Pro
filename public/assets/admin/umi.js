@@ -18849,9 +18849,9 @@
                     role: "alert"
                 }, l.a.createElement("p", {
                     className: "mb-0"
-                }, "\u5982\u679c\u4f60\u91c7\u7528\u524d\u540e\u5206\u79bb\u7684\u65b9\u5f0f\u90e8\u7f72V2board\uff0c\u90a3\u4e48\u4e3b\u9898\u914d\u7f6e\u5c06\u4e0d\u4f1a\u751f\u6548\u3002\u4e86\u89e3", l.a.createElement("b", null, l.a.createElement("a", {
-                    href: "https://docs.v2board.com/use/advanced.html#%E5%89%8D%E7%AB%AF%E5%88%86%E7%A6%BB"
-                }, "\u524d\u540e\u5206\u79bb")))))), Object.keys(t).map(e=>{
+                }, "Hãy chọn một trong những theme khách hàng bên dưới", l.a.createElement("b", null, l.a.createElement("a", {
+                    href: ""
+                }, "")))))), Object.keys(t).map(e=>{
                     var r = t[e];
                     return l.a.createElement("div", {
                         className: "block block-transparent bg-image mb-0 mb-md-3 bg-primary",
