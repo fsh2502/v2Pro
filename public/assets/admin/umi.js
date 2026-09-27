@@ -6178,7 +6178,7 @@
                     role: "alert"
                 }, f.a.createElement("p", {
                     className: "mb-0"
-                }, "Hãy chọn một trong những theme khách hàng bên dưới", f.a.createElement("b", null, f.a.createElement("a", {
+                }, "Tùy chỉnh phong cách dành cho trang website của khách hàng", f.a.createElement("b", null, f.a.createElement("a", {
                     href: ""
                 }, ""))))))), f.a.createElement("div", {
                     className: ""
