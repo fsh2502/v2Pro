@@ -124,6 +124,18 @@ namespace {
     check(count($modernConfig['http_clients']) === 1, 'sing-box 1.14 reuses one HTTP client for the shared detour');
     check($modernConfig['http_clients'][0]['detour'] === $modernConfig['outbounds'][1]['tag'], 'HTTP client preserves download outbound');
     check($modernConfig['route']['default_http_client'] === 'rule-set-download', 'sing-box 1.14 has explicit default HTTP client');
+    $modernTun = array_values(array_filter($modernConfig['inbounds'], function ($inbound) {
+        return ($inbound['type'] ?? null) === 'tun';
+    }))[0];
+    check($modernTun['mtu'] === 1400, 'sing-box uses stable TUN MTU');
+    check($modernTun['stack'] === 'mixed', 'sing-box uses mixed TUN stack');
+    check($modernTun['strict_route'] === false, 'sing-box disables strict TUN routing');
+    check($modernTun['endpoint_independent_nat'] === false, 'sing-box disables endpoint-independent NAT');
+    check($modernTun['address'] === ['172.19.0.1/30'], 'sing-box TUN exports IPv4 only');
+    $standaloneDirect = array_values(array_filter($modernConfig['outbounds'], function ($outbound) {
+        return ($outbound['type'] ?? null) === 'direct';
+    }))[0];
+    check(strpos($standaloneDirect['tag'], '§hide§') === false, 'standalone sing-box keeps its direct outbound visible');
     $trojanWssServer = array_replace($server, [
         'protocol' => 'trojan',
         'network' => 'ws',
@@ -145,6 +157,15 @@ namespace {
     $hiddifyTrojanWss = $method->invoke($hiddifyRenderer)[0];
     check($hiddifyTrojanWss['tls']['certificate_public_key_sha256'] === [$spki], 'Hiddify receives sing-box SPKI pin');
     check($hiddifyTrojanWss['transport']['type'] === 'ws', 'Hiddify receives native Trojan WSS config');
+    $hiddifyOutputMethod = new \ReflectionMethod(\App\Protocols\Singbox\Singbox::class, 'buildOutputConfig');
+    $hiddifyOutputMethod->setAccessible(true);
+    $hiddifyOutput = $hiddifyOutputMethod->invoke($hiddifyRenderer, [$hiddifyTrojanWss]);
+    check(array_keys($hiddifyOutput) === ['outbounds'], 'Hiddify receives proxy-only sing-box JSON');
+    check(count($hiddifyOutput['outbounds']) === 1, 'Hiddify output excludes panel routing outbounds');
+    check($hiddifyOutput['outbounds'][0]['tls']['certificate_public_key_sha256'] === [$spki], 'Hiddify proxy-only JSON retains SPKI pin');
+    check(count(array_filter($hiddifyOutput['outbounds'], function ($outbound) {
+        return in_array(($outbound['type'] ?? null), ['direct', 'selector', 'urltest'], true);
+    })) === 0, 'Hiddify output excludes panel direct and selector outbounds');
     $reality = array_replace($server, ['tls' => 2]);
     check(\App\Utils\TlsPin::resolve($reality)['certificate'] === '', 'No REALITY pin');
     check(\App\Utils\TlsPin::resolve(array_replace($server, ['tls' => 0]))['certificate'] === '', 'No plaintext pin');

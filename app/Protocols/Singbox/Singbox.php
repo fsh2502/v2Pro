@@ -5,17 +5,21 @@ use App\Utils\Helper;
 
 class Singbox
 {
+    private const STABLE_TUN_MTU = 1400;
+
     public $flag = 'sing';
     private $servers;
     private $user;
     private $config;
     private $version;
+    private $proxyOutboundsOnly;
 
     public function __construct($user, $servers, array $options = null)
     {
         $this->user = $user;
         $this->servers = $servers;
         $this->version = $options['version'] ?? null;
+        $this->proxyOutboundsOnly = !empty($options['proxy_outbounds_only']);
     }
 
     public function handle()
@@ -25,9 +29,10 @@ class Singbox
         $proxies = $this->buildProxies();
         $outbounds = $this->addProxies($proxies);
         $this->config['outbounds'] = $outbounds;
+        $outputConfig = $this->buildOutputConfig($proxies);
         $user = $this->user;
 
-        return response(json_encode($this->config, JSON_UNESCAPED_SLASHES), 200)
+        return response(json_encode($outputConfig, JSON_UNESCAPED_SLASHES), 200)
             ->header('Content-Type', 'application/json')
             ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
             ->header('profile-update-interval', '24')
@@ -42,8 +47,69 @@ class Singbox
         $jsonData = file_exists($customConfig) ? file_get_contents($customConfig) : file_get_contents($defaultConfig);
 
         $config = json_decode($jsonData, true);
+        $config = $this->normalizeTunProfile($config);
         if ($this->version && version_compare($this->version, '1.14.0', '>=')) {
             $config = $this->migrateRuleSetHttpClients($config);
+        }
+
+        return $config;
+    }
+
+    /**
+     * Hiddify rebuilds its own TUN, DNS, routing and selector groups. Export
+     * only real proxy outbounds for that client so the panel cannot create a
+     * second TUN, while retaining sing-box-only fields such as SPKI pins.
+     */
+    private function buildOutputConfig(array $proxies): array
+    {
+        if ($this->proxyOutboundsOnly) {
+            return ['outbounds' => array_values($proxies)];
+        }
+
+        return $this->config;
+    }
+
+    /**
+     * Keep native sing-box subscriptions stable across mobile and desktop
+     * TUN implementations. This mirrors the conservative profile used by
+     * zboard and is scoped to the sing-box renderer only.
+     */
+    private function normalizeTunProfile(array $config): array
+    {
+        if (empty($config['inbounds']) || !is_array($config['inbounds'])) {
+            return $config;
+        }
+
+        foreach ($config['inbounds'] as &$inbound) {
+            if (!is_array($inbound) || ($inbound['type'] ?? null) !== 'tun') {
+                continue;
+            }
+
+            $inbound['auto_route'] = true;
+            $inbound['stack'] = 'mixed';
+            $inbound['strict_route'] = false;
+            $inbound['mtu'] = self::STABLE_TUN_MTU;
+            $inbound['endpoint_independent_nat'] = false;
+
+            $addresses = is_array($inbound['address'] ?? null) ? $inbound['address'] : [];
+            $addresses = array_values(array_filter($addresses, static function ($address) {
+                return is_string($address) && strpos($address, ':') === false;
+            }));
+            $inbound['address'] = $addresses ?: ['172.19.0.1/30'];
+
+            foreach (['inet6_address', 'inet6_route_address', 'inet6_route_exclude_address'] as $key) {
+                unset($inbound[$key]);
+            }
+
+            if (array_key_exists('sniff_override_destination', $inbound)) {
+                $inbound['sniff'] = true;
+                $inbound['sniff_override_destination'] = false;
+            }
+        }
+        unset($inbound);
+
+        if (isset($config['route']) && is_array($config['route'])) {
+            $config['route']['auto_detect_interface'] = true;
         }
 
         return $config;
