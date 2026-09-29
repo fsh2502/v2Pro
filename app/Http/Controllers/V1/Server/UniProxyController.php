@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1\Server;
 
 use App\Http\Controllers\Controller;
 use App\Services\ServerService;
+use App\Services\OnlineUserService;
 use App\Services\UserService;
 use App\Utils\CacheKey;
 use App\Utils\Helper;
@@ -82,7 +83,11 @@ class UniProxyController extends Controller
                 'error' => 'Invalid traffic data'
             ], 400);
         }
-        Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_ONLINE_USER', $this->nodeInfo->id), count($data), 3600);
+        // Legacy nodes may only push traffic. Once an alive snapshot exists, it is authoritative.
+        if ($this->nodeType !== 'v2node'
+            && !Cache::has(OnlineUserService::snapshotKey($this->nodeType, (int) $this->nodeInfo->id))) {
+            Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_ONLINE_USER', $this->nodeInfo->id), count($data), 3600);
+        }
         Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_LAST_PUSH_AT', $this->nodeInfo->id), time(), 3600);
         $userService = new UserService();
         $userService->trafficFetch($this->nodeInfo->toArray(), $this->nodeType, $data);
@@ -169,6 +174,8 @@ class UniProxyController extends Controller
             $ips_array['alive_ip'] = $count;
             Cache::put('ALIVE_IP_USER_' . $uid, $ips_array, 120);
         }
+
+        (new OnlineUserService())->report($this->nodeType, (int) $this->nodeInfo->id, $data);
 
         return response([
             'data' => true

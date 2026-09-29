@@ -18,6 +18,7 @@ use App\Models\StatServer;
 use App\Models\StatUser;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\OnlineUserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,8 +28,7 @@ class StatController extends Controller
     {
         return [
             'data' => [
-                'online_user' => User::where('t','>=', time() - 600)
-                    ->count(),
+                'online_user' => (new OnlineUserService())->countAll(),
                 'month_income' => Order::where('created_at', '>=', strtotime(date('Y-m-1')))
                     ->where('created_at', '<', time())
                     ->whereNotIn('status', [0, 2])

@@ -409,9 +409,12 @@ class ServerService
     {
         foreach ($servers as $k => $v) {
             $serverType = strtoupper($v['type']);
-            $servers[$k]['online'] = Cache::get(CacheKey::get("SERVER_{$serverType}_ONLINE_USER", $v['parent_id'] ?? $v['id']));
+            $servers[$k]['online'] = (int) Cache::get(CacheKey::get("SERVER_{$serverType}_ONLINE_USER", $v['parent_id'] ?? $v['id']), 0);
             $servers[$k]['last_check_at'] = Cache::get(CacheKey::get("SERVER_{$serverType}_LAST_CHECK_AT", $v['parent_id'] ?? $v['id']));
             $servers[$k]['last_push_at'] = Cache::get(CacheKey::get("SERVER_{$serverType}_LAST_PUSH_AT", $v['parent_id'] ?? $v['id']));
+            if ((time() - OnlineUserService::maxAge()) >= $servers[$k]['last_push_at']) {
+                $servers[$k]['online'] = 0;
+            }
             if ((time() - 300) >= $servers[$k]['last_check_at']) {
                 $servers[$k]['available_status'] = 0;
             } else if ((time() - 300) >= $servers[$k]['last_push_at']) {

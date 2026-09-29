@@ -110,7 +110,7 @@ class ServerController extends Controller
         $eTag = sha1($rsp);
 
         // 不使用 abort(304)，避免异常路径
-        if ($request->header('If-None-Match') === $eTag) {
+        if (trim((string) $request->header('If-None-Match'), '"') === $eTag) {
             return response('', 304)->header('ETag', "\"{$eTag}\"");
         }
 
