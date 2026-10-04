@@ -163,6 +163,9 @@ namespace {
     check(array_keys($hiddifyOutput) === ['outbounds'], 'Hiddify receives proxy-only sing-box JSON');
     check(count($hiddifyOutput['outbounds']) === 1, 'Hiddify output excludes panel routing outbounds');
     check($hiddifyOutput['outbounds'][0]['tls']['certificate_public_key_sha256'] === [$spki], 'Hiddify proxy-only JSON retains SPKI pin');
+    check($hiddifyTrojanWss['domain_resolver'] === 'local', 'Standalone sing-box keeps the panel DNS resolver');
+    check(!isset($hiddifyOutput['outbounds'][0]['domain_resolver']), 'Hiddify uses its own default domain resolver');
+    check($hiddifyOutput['outbounds'][0]['server'] === 'node.example.com', 'Hiddify keeps domain connection addresses');
     check(count(array_filter($hiddifyOutput['outbounds'], function ($outbound) {
         return in_array(($outbound['type'] ?? null), ['direct', 'selector', 'urltest'], true);
     })) === 0, 'Hiddify output excludes panel direct and selector outbounds');

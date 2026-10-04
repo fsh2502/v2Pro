@@ -63,6 +63,12 @@ class Singbox
     private function buildOutputConfig(array $proxies): array
     {
         if ($this->proxyOutboundsOnly) {
+            // Hiddify supplies its own DNS servers and default domain resolver.
+            // The panel's "local" DNS tag exists only in the standalone config.
+            foreach ($proxies as &$proxy) {
+                unset($proxy['domain_resolver']);
+            }
+            unset($proxy);
             return ['outbounds' => array_values($proxies)];
         }
 
