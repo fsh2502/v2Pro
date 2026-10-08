@@ -65,6 +65,8 @@ Tại thời điểm hoàn tất đợt rà soát, các thay đổi chỉ nằm 
 
 ## Chạy lại các kiểm tra
 
+Kết quả kiểm thử tiếp theo trên staging thật (API CTV, giao diện Staff và hiện tượng Admin cần xử lý) nằm tại [ctv-live-test-2026-10-08.md](ctv-live-test-2026-10-08.md).
+
 Khi đã cài dependency đúng dự án:
 
 ```bash
