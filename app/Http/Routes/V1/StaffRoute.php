@@ -11,22 +11,22 @@ class StaffRoute
             'prefix' => 'staff',
             'middleware' => 'staff'
         ], function ($router) {
-            // Ticket
-            $router->get ('/ticket/fetch', 'V1\\Staff\\TicketController@fetch');
-            $router->post('/ticket/reply', 'V1\\Staff\\TicketController@reply');
-            $router->post('/ticket/close', 'V1\\Staff\\TicketController@close');
+            // Personal settings: only this Staff account's subscription name.
+            $router->get('/personalization/fetch', 'V1\\Staff\\PersonalizationController@fetch');
+            $router->post('/personalization/update', 'V1\\Staff\\PersonalizationController@update');
             // User
+            $router->get('/activity/fetch', 'V1\\ActivityLogController@staffFetch');
+            $router->get('/plan/fetch', 'V1\\Staff\\PlanController@fetch');
+            $router->post('/logout', 'V1\\Staff\\UserController@logout');
+            $router->get ('/user/summary', 'V1\\Staff\\UserController@summary');
+            $router->get ('/user/fetch', 'V1\\Staff\\UserController@fetch');
+            $router->post('/user/create', 'V1\\Staff\\UserController@create');
             $router->post('/user/update', 'V1\\Staff\\UserController@update');
             $router->get ('/user/getUserInfoById', 'V1\\Staff\\UserController@getUserInfoById');
-            $router->post('/user/sendMail', 'V1\\Staff\\UserController@sendMail');
-            $router->post('/user/ban', 'V1\\Staff\\UserController@ban');
-            // Plan
-            $router->get ('/plan/fetch', 'V1\\Staff\\PlanController@fetch');
-            // Notice
-            $router->get ('/notice/fetch', 'V1\\Admin\\NoticeController@fetch');
-            $router->post('/notice/save', 'V1\\Admin\\NoticeController@save');
-            $router->post('/notice/update', 'V1\\Admin\\NoticeController@update');
-            $router->post('/notice/drop', 'V1\\Admin\\NoticeController@drop');
+            $router->get('/user/getSubscription', 'V1\\Staff\\CustomerActionController@getSubscription');
+            $router->post('/user/resetSecret', 'V1\\Staff\\CustomerActionController@resetSecret');
+            $router->get('/user/getTrafficLog', 'V1\\Staff\\CustomerActionController@getTrafficLog');
+            $router->post('/user/delUser', 'V1\\Staff\\CustomerActionController@delUser');
         });
     }
 }

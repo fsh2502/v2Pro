@@ -81,6 +81,9 @@ class GroupController extends Controller
         if (Plan::where('group_id', $request->input('id'))->first()) {
             abort(500, '该组已被订阅所使用，无法删除');
         }
+        if (\App\Models\StaffPlan::where('group_id', $request->input('id'))->exists()) {
+            abort(422, 'Nhóm máy chủ đang được dùng bởi gói Staff.');
+        }
         if (User::where('group_id', $request->input('id'))->first()) {
             abort(500, '该组已被用户所使用，无法删除');
         }

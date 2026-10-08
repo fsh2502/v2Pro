@@ -18,7 +18,7 @@ class SingboxOld
 
     public function handle()
     {
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         $this->config = $this->loadConfig();
         $proxies = $this->buildProxies();
         $outbounds = $this->addProxies($proxies);
@@ -30,7 +30,7 @@ class SingboxOld
             ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
             ->header('profile-update-interval', '24')
             ->header('Profile-Title', 'base64:' . base64_encode($appName))
-            ->header('Content-Disposition', 'attachment; filename="' . $appName . '"');
+            ->header('Content-Disposition', "attachment; filename*=UTF-8''" . rawurlencode($appName));
     }
 
     protected function loadConfig()

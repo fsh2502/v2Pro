@@ -138,7 +138,8 @@ class AuthController extends Controller
         $email = $request->input('email');
         $password = $request->input('password');
 
-        if ((int)config('v2board.password_limit_enable', 1)) {
+        $passwordLimitEnabled = (int) config('v2board.password_limit_enable', 1);
+        if ($passwordLimitEnabled) {
             $passwordErrorCount = (int)Cache::get(CacheKey::get('PASSWORD_ERROR_LIMIT', $email), 0);
             if ($passwordErrorCount >= (int)config('v2board.password_limit_count', 5)) {
                 abort(500, __('There are too many password errors, please try again after :minute minutes.', [
@@ -157,7 +158,7 @@ class AuthController extends Controller
             $password,
             $user->password)
         ) {
-            if ((int)config('v2board.password_limit_enable')) {
+            if ($passwordLimitEnabled) {
                 Cache::put(
                     CacheKey::get('PASSWORD_ERROR_LIMIT', $email),
                     (int)$passwordErrorCount + 1,

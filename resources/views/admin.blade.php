@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="/assets/admin/umi.css?v={{$version}}">
     <link rel="stylesheet" href="/assets/admin/qrcode.css?v={{$version}}">
     <link rel="stylesheet" href="/assets/admin/custom.css?v={{$version}}">
+    <link rel="stylesheet" href="/assets/admin/staff-plans.css?v={{$version}}">
+    <link rel="stylesheet" href="/assets/admin/ctv.css?v={{$version}}">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
     <title>{{$title}}</title>
@@ -33,6 +35,9 @@
 <script src="/assets/admin/components.async.js?v={{$version}}"></script>
 <script src="/assets/admin/qrcode.async.js?v={{$version}}"></script>
 <script src="/assets/admin/certificate.js?v={{$version}}"></script>
+<script src="/assets/admin/staff-plans.js?v={{$version}}"></script>
+<script src="/assets/staff/activity.js?v={{$version}}"></script>
+<script src="/assets/admin/ctv.js?v={{$version}}"></script>
 <script src="/assets/admin/umi.js?v={{$version}}"></script>
 <script src="/assets/admin/vi-VN.js?v={{$version}}"></script>
 <script src="/assets/admin/v2b-mod.js?v={{$version}}"></script>

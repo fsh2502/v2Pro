@@ -28,7 +28,7 @@ class v2RayTun
         $body = base64_encode($uri);
 
         // 构建 v2raytun 标头
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         $headers = [
             // profile-title 支持 base64 和原文
             'profile-title' => $this->getProfileTitle($appName),
@@ -55,7 +55,7 @@ class v2RayTun
             $headers['update-always'] = isset($this->options['update_always']) ? ($this->options['update_always'] ? 'true' : 'false') : 'true';
         }
         // Content-Disposition
-        $headers['Content-Disposition'] = 'attachment; filename="' . $appName . '"';
+        $headers['Content-Disposition'] = "attachment; filename*=UTF-8''" . rawurlencode($appName);
 
         // 返回响应
         $response = response($body, 200);

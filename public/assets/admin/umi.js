@@ -21077,6 +21077,13 @@
                             className: "nav-main-link-icon si si-users"
                         })
                     }, {
+                        title: "Quản Lý CTV",
+                        type: "item",
+                        href: "/ctv",
+                        icon: o.a.createElement("i", {
+                            className: "nav-main-link-icon si si-user-follow"
+                        })
+                    }, {
                         title: "\u516c\u544a\u7ba1\u7406",
                         type: "item",
                         href: "/notice",
@@ -22244,6 +22251,7 @@
             }
             submit() {
                 var e = f()({}, this.props.user.user);
+                ["staff_customer_limit", "staff_owner_id", "staff_creator_id", "staff_app_name"].forEach(function(field) { delete e[field]; });
                 this.props.dispatch({
                     type: "user/update",
                     params: e,
@@ -71150,6 +71158,16 @@
                         title: "\u5907\u6ce8",
                         condition: ["\u6a21\u7cca"]
                     }, {
+                        key: "staff_owner_id",
+                        title: "ID Staff phụ trách",
+                        condition: ["="]
+                    }, {
+                        key: "is_staff",
+                        title: "Staff",
+                        condition: ["="],
+                        type: "select",
+                        options: [{key: "Có", value: 1}, {key: "Không", value: 0}]
+                    }, {
                         key: "is_admin",
                         title: "\u7ba1\u7406\u5458",
                         condition: ["="],
@@ -82389,6 +82407,10 @@
             path: "/user",
             exact: !0,
             component: n("d1ca").default
+        }, {
+            path: "/ctv",
+            exact: !0,
+            component: window.createCtvComponent(i.a, n("Bl7J")["a"])
         }];
         window.g_routes = u;
         var h = n("PszG");

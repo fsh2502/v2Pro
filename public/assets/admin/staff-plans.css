@@ -1,0 +1,17 @@
+.staff-plans-dialog { position: fixed; inset: 0; margin: auto; width: min(1040px, 94vw); max-height: 90vh; border: 1px solid #e4e9f3; padding: 24px; color: #495057; overflow-y: auto; background: white; box-shadow: 0 4px 24px #0003; }
+.staff-plans-dialog:not([open]) { display: none; }
+.staff-plans-dialog::backdrop { background: #0006; }
+.staff-plans-header, .staff-plans-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.staff-plans-header h3 { margin: 0; font-size: 20px; }
+.staff-plans-dialog fieldset { border: 0; padding: 0; margin: 0; }
+.staff-plans-list { overflow-x: auto; margin: 16px 0; }
+.staff-plans-list table { width: 100%; }
+.staff-plans-list th, .staff-plans-list td { padding: 12px 8px; border-bottom: 1px solid #e4e9f3; white-space: nowrap; text-align: left; }
+.staff-plans-list input { margin-right: 8px; }
+.staff-plans-form { border-top: 1px solid #e4e9f3; margin-top: 24px; padding-top: 16px; }
+.staff-plans-form label { display: block; margin: 12px 0; }
+.staff-plans-form label input, .staff-plans-form label select { display: block; width: 100%; margin-top: 6px; }
+.staff-plans-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.staff-plans-message { background: #f0f5fc; padding: 12px; margin-bottom: 16px; white-space: pre-wrap; }
+.staff-plans-message.error { background: #ffe4e4; color: #932526; }
+@media (max-width: 767px) { .staff-plans-form-grid { grid-template-columns: 1fr; } }

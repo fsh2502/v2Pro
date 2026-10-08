@@ -21,7 +21,7 @@ class Surfboard
         $servers = $this->servers;
         $user = $this->user;
 
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         header("content-disposition:attachment;filename*=UTF-8''".rawurlencode($appName).".conf");
 
         $proxies = '';

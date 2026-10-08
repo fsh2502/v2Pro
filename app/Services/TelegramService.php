@@ -121,15 +121,11 @@ class TelegramService {
         return $response;
     }
 
-    public function sendMessageWithAdmin($message, $isStaff = false)
+    public function sendMessageWithAdmin($message, $isStaff = false, $customerId = null)
     {
         if (!config('v2board.telegram_bot_enable', 0)) return;
-        $users = User::where(function ($query) use ($isStaff) {
-            $query->where('is_admin', 1);
-            if ($isStaff) {
-                $query->orWhere('is_staff', 1);
-            }
-        })
+        // Legacy callers may still pass $isStaff; Staff no longer receives admin notifications.
+        $users = User::where('is_admin', 1)->where('banned', 0)
             ->where('telegram_id', '!=', NULL)
             ->get();
         foreach ($users as $user) {

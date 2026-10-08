@@ -856,3 +856,59 @@ CREATE TABLE `v2_server_v2node` (
 
 ALTER TABLE `v2_server_route`
 CHANGE `action_value` `action_value` text NULL AFTER `action`;
+
+ALTER TABLE `v2_user` ADD `staff_owner_id` int(11) DEFAULT NULL;
+ALTER TABLE `v2_user` ADD `staff_customer_limit` int(10) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `v2_user` ADD INDEX `v2_user_staff_owner_id_index` (`staff_owner_id`);
+ALTER TABLE `v2_notice` ADD `staff_owner_id` int(11) DEFAULT NULL;
+ALTER TABLE `v2_notice` ADD INDEX `v2_notice_staff_owner_id_index` (`staff_owner_id`);
+ALTER TABLE `v2_user` ADD `staff_creator_id` int(11) DEFAULT NULL;
+ALTER TABLE `v2_user` ADD INDEX `v2_user_staff_creator_id_index` (`staff_creator_id`);
+
+-- Staff subscription name (independent of the global app_name)
+ALTER TABLE `v2_user` ADD `staff_app_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+
+-- Separate shared Staff catalog and per-Staff permissions
+ALTER TABLE `v2_user` ADD `staff_plan_id` int DEFAULT NULL;
+ALTER TABLE `v2_user` ADD INDEX `v2_user_staff_plan_id_index` (`staff_plan_id`);
+CREATE TABLE `v2_staff_plan` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(128) NOT NULL,
+    `group_id` int NOT NULL,
+    `transfer_enable` bigint NOT NULL,
+    `speed_limit` int DEFAULT NULL,
+    `device_limit` int DEFAULT NULL,
+    `enabled` tinyint(1) NOT NULL DEFAULT 1,
+    `created_at` int DEFAULT NULL,
+    `updated_at` int DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE `v2_staff_plan_permission` (
+    `staff_id` int NOT NULL,
+    `staff_plan_id` int NOT NULL,
+    PRIMARY KEY (`staff_id`, `staff_plan_id`),
+    KEY `v2_staff_plan_permission_staff_plan_id_index` (`staff_plan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- CTV activity journal: credentials are never stored.
+ALTER TABLE `v2_user`
+    MODIFY `staff_app_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    MODIFY `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `v2_staff_activity_log` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `actor_id` int DEFAULT NULL,
+    `actor_type` varchar(16) NOT NULL,
+    `actor_label` varchar(64) NOT NULL,
+    `target_type` varchar(16) NOT NULL,
+    `target_id` int NOT NULL,
+    `target_label` varchar(255) NOT NULL,
+    `staff_id` int DEFAULT NULL,
+    `creator_id` int DEFAULT NULL,
+    `action` varchar(32) NOT NULL,
+    `changes` mediumtext NOT NULL,
+    `created_at` int NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `v2_staff_activity_log_target_type_target_id_id_index` (`target_type`, `target_id`, `id`),
+    KEY `v2_staff_activity_log_staff_id_creator_id_id_index` (`staff_id`, `creator_id`, `id`),
+    KEY `v2_staff_activity_log_actor_id_id_index` (`actor_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

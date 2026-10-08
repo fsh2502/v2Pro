@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\AuthService;
+use App\Models\User;
 use Closure;
 
 class Staff
@@ -20,7 +21,10 @@ class Staff
         if (!$authorization) abort(403, '未登录或登陆已过期');
 
         $user = AuthService::decryptAuthData($authorization);
-        if (!$user || !$user['is_staff']) abort(403, '未登录或登陆已过期');
+        // Re-read permissions so revocation/ban takes effect even when JWT data is cached.
+        $staff = $user ? User::find($user['id']) : null;
+        if (!$staff || !$staff->is_staff || $staff->banned) abort(403, '未登录或登陆已过期');
+        $user['is_staff'] = $staff->is_staff;
         $request->merge([
             'user' => $user
         ]);

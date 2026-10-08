@@ -86,7 +86,7 @@ class Happ
 
     private function buildHeaders($user)
     {
-        $appName = $this->limitText(config('v2board.app_name', 'V2Board'), 25);
+        $appName = $this->limitText(\App\Services\SubscriptionNameService::forUser($this->user), 25);
         $siteUrl = config('v2board.app_site_url') ?: config('v2board.app_url', '');
         $supportUrl = config('v2board.app_support_url') ?: $siteUrl;
         $expireAt = (int) ($user['expired_at'] ?? 0);

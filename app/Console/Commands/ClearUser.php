@@ -40,6 +40,7 @@ class ClearUser extends Command
     public function handle()
     {
         $builder = User::where('plan_id', NULL)
+            ->whereNull('staff_plan_id')
             ->where('transfer_enable', 0)
             ->where('expired_at', 0)
             ->where('last_login_at', NULL);

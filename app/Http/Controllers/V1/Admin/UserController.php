@@ -15,6 +15,7 @@ use App\Models\Plan;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\StaffCustomerService;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,13 +25,16 @@ class UserController extends Controller
 {
     public function resetSecret(Request $request)
     {
-        $user = User::find($request->input('id'));
-        if (!$user) abort(500, '用户不存在');
-        $user->token = Helper::guid();
-        $user->uuid = Helper::guid(true);
-        return response([
-            'data' => $user->save()
-        ]);
+        return DB::transaction(function () use ($request) {
+            $user = User::where('id', $request->input('id'))->lockForUpdate()->first();
+            if (!$user) abort(500, '用户不存在');
+            $before = \App\Services\StaffActivityService::snapshot($user);
+            $user->token = Helper::guid();
+            $user->uuid = Helper::guid(true);
+            $saved = $user->save();
+            \App\Services\StaffActivityService::user($user, $before, 'customer.reset');
+            return response(['data' => $saved]);
+        });
     }
 
     private function filter(Request $request, $builder)
@@ -77,7 +81,11 @@ class UserController extends Controller
         $res = $userModel->forPage($current, $pageSize)
             ->get();
         $plan = Plan::get();
+        $staffPlans = \App\Models\StaffPlan::whereIn('id', $res->pluck('staff_plan_id')->filter())->pluck('name', 'id');
         for ($i = 0; $i < count($res); $i++) {
+            if ($res[$i]->staff_plan_id && !$res[$i]->plan_id) {
+                $res[$i]['plan_name'] = 'Staff · ' . ($staffPlans[$res[$i]->staff_plan_id] ?? ('ID ' . $res[$i]->staff_plan_id));
+            }
             for ($k = 0; $k < count($plan); $k++) {
                 if ($plan[$k]['id'] == $res[$i]['plan_id']) {
                     $res[$i]['plan_name'] = $plan[$k]['name'];
@@ -114,6 +122,13 @@ class UserController extends Controller
             abort(500, '参数错误');
         }
         $user = User::find($request->input('id'));
+        if (!$user) abort(404, '用户不存在');
+        if ($user->is_staff) {
+            $user->staff_customer_count = User::where('staff_owner_id', $user->id)->count();
+        }
+        if ($user->staff_plan_id) {
+            $user->staff_plan_name = \App\Models\StaffPlan::where('id', $user->staff_plan_id)->value('name');
+        }
         if ($user->invite_user_id) {
             $user['invite_user'] = User::find($user->invite_user_id);
         }
@@ -144,7 +159,8 @@ class UserController extends Controller
                 abort(500, '订阅计划不存在');
             }
             $params['group_id'] = $plan->group_id;
-        } else {
+            $params['staff_plan_id'] = null;
+        } elseif (!$user->staff_plan_id) {
             $params['group_id'] = null;
         }
         if ($request->input('invite_user_email')) {
@@ -156,15 +172,14 @@ class UserController extends Controller
             $params['invite_user_id'] = null;
         }
 
-        if (isset($params['banned']) && (int)$params['banned'] === 1) {
+        $revokeSessions = !empty($params['banned']) || !empty($params['password'])
+            || (int) $params['is_staff'] !== (int) $user->is_staff
+            || (int) $params['is_admin'] !== (int) $user->is_admin;
+
+        (new StaffCustomerService())->updateByAdmin($user, $params);
+        if ($revokeSessions) {
             $authService = new AuthService($user);
             $authService->removeAllSession();
-        }
-
-        try {
-            $user->update($params);
-        } catch (\Exception $e) {
-            abort(500, '保存失败');
         }
         return response([
             'data' => true
@@ -309,13 +324,15 @@ class UserController extends Controller
         $builder = User::orderBy($sort, $sortType);
         $this->filter($request, $builder);
         try {
-            $builder->each(function ($user){
-                $authService = new AuthService($user);
-                $authService->removeAllSession();
+            DB::transaction(function () use ($builder) {
+                $builder->lockForUpdate()->each(function ($user) {
+                    $before = \App\Services\StaffActivityService::snapshot($user);
+                    $user->banned = 1;
+                    \App\Services\StaffActivityService::user($user, $before, $user->is_staff ? 'staff.update' : 'customer.update');
+                    (new AuthService($user))->removeAllSession();
+                });
+                $builder->update(['banned' => 1]);
             });
-            $builder->update([
-                'banned' => 1
-            ]);
         } catch (\Exception $e) {
             abort(500, '处理失败');
         }
@@ -334,6 +351,10 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
+            $ids = (clone $builder)->lockForUpdate()->pluck('id');
+            if (User::whereIn('staff_owner_id', $ids)->exists()) {
+                abort(422, 'Hãy chuyển khách hàng của Staff sang người phụ trách khác trước khi xóa.');
+            }
             $builder->each(function ($user){
                 $authService = new AuthService($user);
                 $authService->removeAllSession();
@@ -345,11 +366,13 @@ class UserController extends Controller
                 }
                 Ticket::where('user_id', $user->id)->delete();
                 User::where('invite_user_id', $user->id)->update(['invite_user_id' => null]);
+                \App\Services\StaffActivityService::user($user, \App\Services\StaffActivityService::snapshot($user), $user->is_staff ? 'staff.delete' : 'customer.delete');
             });
             $builder->delete();
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) throw $e;
             abort(500, '批量删除用户信息失败');
         }  
 
@@ -366,6 +389,11 @@ class UserController extends Controller
         }
         DB::beginTransaction();
         try {
+            $user = User::where('id', $user->id)->lockForUpdate()->first();
+            if (!$user) abort(404, '用户不存在');
+            if (User::where('staff_owner_id', $user->id)->exists()) {
+                abort(422, 'Hãy chuyển khách hàng của Staff sang người phụ trách khác trước khi xóa.');
+            }
             $authService = new AuthService($user);
             $authService->removeAllSession();
             Order::where('user_id', $request->input('id'))->delete();
@@ -378,10 +406,13 @@ class UserController extends Controller
             }
             Ticket::where('user_id', $request->input('id'))->delete();
     
+            $before = \App\Services\StaffActivityService::snapshot($user);
             $user->delete();
+            \App\Services\StaffActivityService::user($user, $before, $user->is_staff ? 'staff.delete' : 'customer.delete');
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) throw $e;
             abort(500, '删除用户失败');
         }
 

@@ -35,7 +35,7 @@ class Incy
         }
 
         $user = $this->user;
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         $profileTitle = base64_encode("{$appName} INCY\nOptimized full-config export");
 
         $response = response(json_encode($configs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), 200)
@@ -43,7 +43,7 @@ class Incy
             ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
             ->header('profile-update-interval', '2')
             ->header('profile-title', "base64:{$profileTitle}")
-            ->header('content-disposition', 'attachment; filename="' . $appName . '-incy.json"');
+            ->header('content-disposition', "attachment; filename*=UTF-8''" . rawurlencode($appName . '-incy.json'));
 
         $webPageUrl = (string) (config('v2board.app_site_url') ?: config('v2board.app_url', ''));
         $supportUrl = (string) (config('v2board.app_support_url') ?: $webPageUrl);
@@ -633,7 +633,7 @@ class Incy
     private function buildExpiredResponse()
     {
         $user = $this->user;
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         $expiredName = rawurlencode('⛔Gói đã hết hạn sử dụng' );
         $body = "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:443?security=tls&type=tcp&sni=expired#{$expiredName}\r\n";
 

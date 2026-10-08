@@ -33,30 +33,26 @@ class TicketService {
 
     public function replyByAdmin($ticketId, $message, $userId):void
     {
-        $ticket = Ticket::where('id', $ticketId)
-            ->first();
+        $actor = User::find($userId);
+        if (!$actor || $actor->banned || !$actor->is_admin) abort(403, 'Không có quyền trả lời ticket.');
+        $query = Ticket::where('id', $ticketId);
+        $ticket = $query->first();
         if (!$ticket) {
-            abort(500, '工单不存在');
+            abort(404, '工单不存在');
         }
         
-        DB::beginTransaction();
-        $ticketMessage = TicketMessage::create([
-            'user_id' => $userId,
-            'ticket_id' => $ticket->id,
-            'message' => $message
-        ]);
-        $ticket->status = 0;
-        if ($userId !== $ticket->user_id) {
-            $ticket->reply_status = 1;
-        } else {
-            $ticket->reply_status = 0;
-        }
-        $ticket->touch();
-        if (!$ticketMessage || !$ticket->save()) {
-            DB::rollback();
-            abort(500, '工单回复失败');
-        }
-        DB::commit();
+        $ticketMessage = DB::transaction(function () use ($ticket, $message, $userId) {
+            $ticketMessage = TicketMessage::create([
+                'user_id' => $userId,
+                'ticket_id' => $ticket->id,
+                'message' => $message
+            ]);
+            $ticket->status = 0;
+            $ticket->reply_status = $userId !== $ticket->user_id ? 1 : 0;
+            $ticket->touch();
+            if (!$ticketMessage || !$ticket->save()) abort(500, '工单回复失败');
+            return $ticketMessage;
+        });
         $this->sendEmailNotify($ticket, $ticketMessage);
     }
 

@@ -23,6 +23,9 @@ class General
         foreach ($this->servers as $server) {
             $uri .= Helper::buildUri($this->user['uuid'], $server);
         }
-        return base64_encode($uri);
+        $name = \App\Services\SubscriptionNameService::forUser($this->user);
+        return response(base64_encode($uri))
+            ->header('profile-title', 'base64:' . base64_encode($name))
+            ->header('content-disposition', "attachment; filename*=UTF-8''" . rawurlencode($name));
     }
 }

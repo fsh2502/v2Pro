@@ -657,7 +657,7 @@ class V2BOX
         $name = $this->sanitizeMultilineText(
             $this->options['profile_title']
             ?? $this->options['subscription_name']
-            ?? config('v2board.app_name', 'V2Board')
+            ?? \App\Services\SubscriptionNameService::forUser($this->user)
         );
 
         if ($name === null) {

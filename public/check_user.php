@@ -37,9 +37,10 @@ try {
     $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4";
     $pdo = new PDO($dsn, $dbUser, $dbPass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     
-    $query = "SELECT u.id, u.email, u.u, u.d, u.transfer_enable, u.expired_at, p.name as plan_name 
-              FROM v2_user u 
-              LEFT JOIN v2_plan p ON u.plan_id = p.id 
+    $query = "SELECT u.id, u.email, u.u, u.d, u.transfer_enable, u.expired_at, COALESCE(p.name, sp.name) as plan_name
+              FROM v2_user u
+              LEFT JOIN v2_plan p ON u.plan_id = p.id
+              LEFT JOIN v2_staff_plan sp ON u.staff_plan_id = sp.id
               WHERE u.token = :token LIMIT 1";
               
     $stmt = $pdo->prepare($query);

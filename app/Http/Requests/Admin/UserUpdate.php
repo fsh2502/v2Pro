@@ -66,4 +66,15 @@ class UserUpdate extends FormRequest
             'speed_limit.integer' => '限速格式不正确'
         ];
     }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            foreach (['staff_customer_limit', 'staff_owner_id', 'staff_creator_id', 'staff_app_name'] as $field) {
+                if (array_key_exists($field, $this->all())) {
+                    $validator->errors()->add($field, 'Thiết lập Staff được quản lý trong Quản Lý CTV.');
+                }
+            }
+        });
+    }
 }

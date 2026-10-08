@@ -35,6 +35,7 @@ class AuthService
         return [
             'token' => $this->user->token,
             'is_admin' => $this->user->is_admin,
+            'is_staff' => $this->user->is_staff,
             'auth_data' => $authData
         ];
     }
@@ -89,6 +90,9 @@ class AuthService
     {
         $cacheKey = CacheKey::get("USER_SESSIONS", $this->user->id);
         $sessions = (array)Cache::get($cacheKey, []);
+        if (isset($sessions[$sessionId]['auth_data'])) {
+            Cache::forget($sessions[$sessionId]['auth_data']);
+        }
         unset($sessions[$sessionId]);
         if (!Cache::put(
             $cacheKey,

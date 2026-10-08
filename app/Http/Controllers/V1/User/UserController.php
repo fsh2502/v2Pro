@@ -223,6 +223,7 @@ class UserController extends Controller
                     if ($user->plan_id == null || ($user->expired_at !== null && $user->expired_at < $currentTime)) {
                         $plan = Plan::where('id', $giftcard->plan_id)->first();
                         $user->plan_id = $plan->id;
+                        $user->staff_plan_id = null;
                         $user->group_id = $plan->group_id;
                         $user->transfer_enable = $plan->transfer_enable * 1073741824;
                         $user->device_limit = $plan->device_limit;

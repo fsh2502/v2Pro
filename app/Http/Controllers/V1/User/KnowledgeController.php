@@ -16,9 +16,9 @@ class KnowledgeController extends Controller
         if ($request->input('id')) {
             $knowledge = Knowledge::where('id', $request->input('id'))
                 ->where('show', 1)
-                ->first()
-                ->toArray();
-            if (!$knowledge) abort(500, __('Article does not exist'));
+                ->first();
+            if (!$knowledge) abort(404, __('Article does not exist'));
+            $knowledge = $knowledge->toArray();
             $user = User::find($request->user['id']);
             $userService = new UserService();
             if (!$userService->isAvailable($user)) {
@@ -59,6 +59,13 @@ class KnowledgeController extends Controller
         return response([
             'data' => $knowledges
         ]);
+    }
+
+    public function getCategory(Request $request)
+    {
+        $query = Knowledge::where('show', 1);
+        if ($request->filled('language')) $query->where('language', $request->input('language'));
+        return response(['data' => $query->distinct()->orderBy('category')->pluck('category')]);
     }
 
     private function getBetween($input, $start, $end)

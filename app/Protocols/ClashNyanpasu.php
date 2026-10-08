@@ -21,7 +21,7 @@ class ClashNyanpasu
     {
         $servers = $this->servers;
         $user = $this->user;
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
         header("subscription-userinfo: upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}");
         header('profile-update-interval: 24');
         header("content-disposition:attachment;filename*=UTF-8''".rawurlencode($appName));
@@ -104,8 +104,8 @@ class ClashNyanpasu
         //    array_unshift($config['rules'], "DOMAIN,{$subsDomain},DIRECT");
         //}
 
+        $config = \App\Services\SubscriptionNameService::replacePlaceholders($config, $appName);
         $yaml = Yaml::dump($config, 2, 4, Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE);
-        $yaml = str_replace('$app_name', config('v2board.app_name', 'V2Board'), $yaml);
         return $yaml;
     }
 

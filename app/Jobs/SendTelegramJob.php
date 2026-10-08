@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\TelegramService;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -37,6 +38,8 @@ class SendTelegramJob implements ShouldQueue
      */
     public function handle()
     {
+        // Recheck queued recipients: old Staff notifications must not leak after permission removal.
+        if (!User::where('telegram_id', $this->telegramId)->where('is_admin', 1)->where('banned', 0)->exists()) return;
         $telegramService = new TelegramService();
         $telegramService->sendMessage($this->telegramId, $this->text, 'markdown');
     }

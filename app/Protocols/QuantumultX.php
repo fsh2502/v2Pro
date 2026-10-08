@@ -28,6 +28,9 @@ class QuantumultX
         $uuid = $user['uuid'] ?? '';
 
         header("subscription-userinfo: upload={$upload}; download={$download}; total={$total}; expire={$expire}");
+        $appName = \App\Services\SubscriptionNameService::forUser($this->user);
+        header('profile-title: base64:' . base64_encode($appName));
+        header("content-disposition: attachment; filename*=UTF-8''" . rawurlencode($appName));
 
         foreach ($servers as $item) {
             if (($item['type'] ?? null) === 'v2node' && isset($item['protocol'])) {

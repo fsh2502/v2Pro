@@ -3,6 +3,15 @@
 use App\Services\ThemeService;
 use Illuminate\Http\Request;
 
+Route::get('/staff', function () {
+    return view('staff', [
+        'title' => config('v2board.app_name', 'V2Board'),
+        'theme_sidebar' => config('v2board.frontend_theme_sidebar', 'light'),
+        'theme_header' => config('v2board.frontend_theme_header', 'dark'),
+        'theme_color' => config('v2board.frontend_theme_color', 'default'),
+    ]);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes

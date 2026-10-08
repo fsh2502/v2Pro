@@ -3,8 +3,15 @@
 use Illuminate\Support\Str;
 use Linfo\Linfo;
 
-$lInfo = new Linfo();
-$parser = $lInfo->getParser();
+// Host metrics are optional; a restricted host must still be able to boot Artisan.
+$maxProcesses = 6;
+try {
+    $parser = (new Linfo())->getParser();
+    $maxProcesses = max(1, (int) ceil($parser->getRam()['total'] / 1024 / 1024 / 1024 * 6));
+} catch (\Throwable $e) {
+    // Windows without COM, or hosts where memory statistics are unavailable.
+}
+$maxProcesses = max(1, (int) env('HORIZON_MAX_PROCESSES', $maxProcesses));
 
 return [
 
@@ -169,7 +176,7 @@ return [
     */
 
     'environments' => [
-        'local' => [
+        '*' => [
             'V2board' => [
                 'connection' => 'redis',
                 'queue' => [
@@ -182,7 +189,7 @@ return [
                 ],
                 'balance' => 'auto',
                 'minProcesses' => 1,
-                'maxProcesses' => (int)ceil($parser->getRam()['total'] / 1024 / 1024 / 1024 * 6),
+                'maxProcesses' => $maxProcesses,
                 'tries' => 1,
                 'balanceCooldown' => 3,
             ],

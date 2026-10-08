@@ -3,6 +3,7 @@
 namespace App\Plugins\Telegram\Commands;
 
 use App\Models\User;
+use App\Models\Ticket;
 use App\Plugins\Telegram\Telegram;
 use App\Services\TicketService;
 
@@ -23,7 +24,7 @@ class ReplyTicket extends Telegram {
             abort(500, '用户不存在');
         }
         if (!$msg->text) return;
-        if (!($user->is_admin || $user->is_staff)) return;
+        if (!$user->is_admin || $user->banned) return;
         $ticketService = new TicketService();
         $ticketService->replyByAdmin(
             $ticketId,
@@ -32,6 +33,7 @@ class ReplyTicket extends Telegram {
         );
         $telegramService = $this->telegramService;
         $telegramService->sendMessage($msg->chat_id, "#`{$ticketId}` 的工单已回复成功", 'markdown');
-        $telegramService->sendMessageWithAdmin("#`{$ticketId}` 的工单已由 {$user->email} 进行回复", true);
+        $customerId = Ticket::where('id', $ticketId)->value('user_id');
+        $telegramService->sendMessageWithAdmin("#`{$ticketId}` 的工单已由 {$user->email} 进行回复", true, $customerId);
     }
 }

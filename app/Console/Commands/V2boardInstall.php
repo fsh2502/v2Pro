@@ -74,16 +74,19 @@ class V2boardInstall extends Command
             if (!$file) {
                 abort(500, 'Tệp cơ sở dữ liệu không tồn tại');
             }
-            $sql = str_replace("\n", "", $file);
+            // Keep line boundaries: flattening the dump turns -- comments into SQL.
+            $sql = preg_replace('/^\h*(?:--\h|#)[^\r\n]*/m', '', $file);
             $sql = preg_split("/;/", $sql);
             if (!is_array($sql)) {
                 abort(500, 'Định dạng tệp cơ sở dữ liệu không đúng');
             }
             $this->info('Đang nhập cơ sở dữ liệu, vui lòng đợi...');
             foreach ($sql as $item) {
+                if (!trim($item)) continue;
                 try {
-                    DB::select(DB::raw($item));
+                    DB::unprepared($item);
                 } catch (\Exception $e) {
+                    throw new \RuntimeException('Không thể nhập database: ' . $e->getMessage(), 0, $e);
                 }
             }
             $this->info('Nhập cơ sở dữ liệu đã hoàn tất');
@@ -104,6 +107,7 @@ class V2boardInstall extends Command
             $this->info("Truy cập http(s)://domain_của_bạn/{$defaultSecurePath} Vào bảng quản trị, bạn có thể thay đổi mật khẩu trong trung tâm người dùng.");
         } catch (\Exception $e) {
             $this->error($e->getMessage());
+            return 1;
         }
     }
 

@@ -132,6 +132,7 @@ CREATE TABLE `v2_mail_log` (
 DROP TABLE IF EXISTS `v2_notice`;
 CREATE TABLE `v2_notice` (
                              `id` int(11) NOT NULL AUTO_INCREMENT,
+                             `staff_owner_id` int(11) DEFAULT NULL,
                              `title` varchar(255) NOT NULL,
                              `content` text NOT NULL,
                              `show` tinyint(1) NOT NULL DEFAULT '0',
@@ -139,7 +140,8 @@ CREATE TABLE `v2_notice` (
                              `tags` varchar(255) DEFAULT NULL,
                              `created_at` int(11) NOT NULL,
                              `updated_at` int(11) NOT NULL,
-                             PRIMARY KEY (`id`)
+                             PRIMARY KEY (`id`),
+                             KEY `v2_notice_staff_owner_id_index` (`staff_owner_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -566,23 +568,73 @@ CREATE TABLE `v2_user` (
                            `is_admin` tinyint(1) NOT NULL DEFAULT '0',
                            `last_login_at` int(11) DEFAULT NULL,
                            `is_staff` tinyint(1) NOT NULL DEFAULT '0',
+                           `staff_owner_id` int(11) DEFAULT NULL,
+                           `staff_creator_id` int(11) DEFAULT NULL,
+                           `staff_customer_limit` int(10) unsigned NOT NULL DEFAULT '0',
+                           `staff_app_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
                            `last_login_ip` int(11) DEFAULT NULL,
                            `uuid` varchar(36) NOT NULL,
                            `group_id` int(11) DEFAULT NULL,
                            `plan_id` int(11) DEFAULT NULL,
+                           `staff_plan_id` int(11) DEFAULT NULL,
                            `speed_limit` int(11) DEFAULT NULL,
                            `auto_renewal` tinyint(4) DEFAULT '0',
                            `remind_expire` tinyint(4) DEFAULT '1',
                            `remind_traffic` tinyint(4) DEFAULT '1',
                            `token` char(32) NOT NULL,
                            `expired_at` bigint(20) DEFAULT '0',
-                           `remarks` text,
+                           `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
                            `created_at` int(11) NOT NULL,
                            `updated_at` int(11) NOT NULL,
                            PRIMARY KEY (`id`),
                            UNIQUE KEY `email` (`email`),
-                           UNIQUE KEY `token` (`token`)
+                           UNIQUE KEY `token` (`token`),
+                           KEY `v2_user_staff_owner_id_index` (`staff_owner_id`),
+                           KEY `v2_user_staff_creator_id_index` (`staff_creator_id`),
+                           KEY `v2_user_staff_plan_id_index` (`staff_plan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `v2_staff_plan_permission`;
+DROP TABLE IF EXISTS `v2_staff_plan`;
+CREATE TABLE `v2_staff_plan` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(128) NOT NULL,
+    `group_id` int NOT NULL,
+    `transfer_enable` bigint NOT NULL,
+    `speed_limit` int DEFAULT NULL,
+    `device_limit` int DEFAULT NULL,
+    `enabled` tinyint(1) NOT NULL DEFAULT 1,
+    `created_at` int DEFAULT NULL,
+    `updated_at` int DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE `v2_staff_plan_permission` (
+    `staff_id` int NOT NULL,
+    `staff_plan_id` int NOT NULL,
+    PRIMARY KEY (`staff_id`, `staff_plan_id`),
+    KEY `v2_staff_plan_permission_staff_plan_id_index` (`staff_plan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- 2025-09-12 10:05:00
+
+-- CTV activity journal: credentials are never stored.
+DROP TABLE IF EXISTS `v2_staff_activity_log`;
+CREATE TABLE IF NOT EXISTS `v2_staff_activity_log` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `actor_id` int DEFAULT NULL,
+    `actor_type` varchar(16) NOT NULL,
+    `actor_label` varchar(64) NOT NULL,
+    `target_type` varchar(16) NOT NULL,
+    `target_id` int NOT NULL,
+    `target_label` varchar(255) NOT NULL,
+    `staff_id` int DEFAULT NULL,
+    `creator_id` int DEFAULT NULL,
+    `action` varchar(32) NOT NULL,
+    `changes` mediumtext NOT NULL,
+    `created_at` int NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `v2_staff_activity_log_target_type_target_id_id_index` (`target_type`, `target_id`, `id`),
+    KEY `v2_staff_activity_log_staff_id_creator_id_id_index` (`staff_id`, `creator_id`, `id`),
+    KEY `v2_staff_activity_log_actor_id_id_index` (`actor_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

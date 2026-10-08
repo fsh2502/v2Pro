@@ -1,0 +1,83 @@
+/* Staff shares the Admin panel styles and theme. */
+:root { --staff-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+body { font-family: var(--staff-font-family); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+#page-container button, #page-container input, #page-container select, #page-container textarea { font-family: var(--staff-font-family); }
+[hidden] { display: none !important; }
+dialog:not([open]) { display: none; }
+#staff-navigation .nav-main-link { width: 100%; border: 0; text-align: left; }
+#staff-navigation .nav-main-link:not(.active) { background: transparent; }
+.staff-identity { border-top: 1px solid #e4e9f3; margin-top: 24px; padding-top: 18px; font-size: 12px; color: #7c8088; }
+.staff-identity strong { display: block; margin-top: 6px; font-size: 14px; }
+.staff-card { padding: 22px; border: 1px solid #e4e9f3; }
+.staff-quota { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px 20px; margin-bottom: 24px; background: white; border: 1px solid #e4e9f3; }
+.staff-quota-summary { min-width: 260px; }
+.staff-quota-heading { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; }
+.staff-quota-subtitle { font-size: 13px; color: #7c8088; margin-top: 4px; }
+.staff-quota-track { height: 5px; background: #e4e9f3; margin-top: 8px; border-radius: 5px; overflow: hidden; }
+.staff-quota-track span { display: block; width: 0; height: 100%; background: #0665d0; }
+@media (max-width: 767px) { .staff-quota { flex-wrap: wrap; } .staff-quota-summary { width: 100%; min-width: 0; } }
+#login-panel { max-width: 460px; margin: 40px auto; }
+#personalization { max-width: 800px; }
+#personalization-form { max-width: 540px; }
+#page-header .content-header { color: #495057; }
+.page-header-dark #page-header .content-header, .page-header-dark #page-header .btn { color: white; }
+h2 { font-size: 20px; }
+label { display: block; margin: 16px 0; font-size: 14px; font-weight: 600; }
+label input, label select, label textarea { display: block; width: 100%; margin-top: 6px; }
+input[type=datetime-local], select.ant-input { height: 36px; }
+small { display: block; margin-top: 6px; color: #7c8088; font-weight: 400; line-height: 1.6; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+#search-form { justify-content: flex-start; margin-top: 16px; }
+#search-form input { width: 280px; }
+.table-scroll { overflow-x: auto; margin: 20px 0; }
+.table-scroll table { width: 100%; }
+.table-scroll th, .table-scroll td { white-space: nowrap; }
+#customers .ant-table-thead th:last-child, #customer-rows td:last-child:not([colspan]) { position: sticky; right: 0; z-index: 1; background: white; box-shadow: -5px 0 8px -6px #0004; }
+#customers .ant-table-thead th:last-child { z-index: 2; background: #fafafa; }
+/* Apple devices use their native SF Pro; other platforms use their system fallback. */
+#page-container .ant-table { font-family: var(--staff-font-family) !important; }
+#customers .staff-action-trigger { font-family: inherit; }
+.staff-name-preview { border-left: 3px solid #0665d0; background: #f0f5fc; padding: 16px; margin: 24px 0; font-size: 13px; }
+.staff-name-preview strong { display: block; font-size: 20px; color: #495057; margin-top: 8px; overflow-wrap: anywhere; }
+dialog { margin: 0 0 0 auto; top: 0; bottom: 0; border: 0; padding: 24px; width: min(500px, 100%); height: 100vh; max-height: 100vh; overflow-y: auto; color: #495057; box-shadow: -4px 0 20px #0002; }
+dialog::backdrop { background: #0006; }
+#customer-dialog { width: 80vw; max-width: 100%; padding: 0; overflow: hidden; }
+#customer-form { display: flex; flex-direction: column; height: 100%; }
+.staff-editor-header { padding: 20px 24px 14px; border-bottom: 1px solid #e8e8e8; }
+.staff-editor-header h2 { margin: 0; font-size: 18px; }
+.staff-editor-header p { margin: 6px 0 0; color: #7c8088; font-size: 12px; }
+.staff-editor-body { padding: 8px 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.staff-editor-body label { margin: 12px 0; font-weight: 400; }
+.staff-editor-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.staff-editor-footer { padding: 14px 24px; border-top: 1px solid #e8e8e8; display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 767px) { #customer-dialog { width: 100%; } .staff-editor-row { grid-template-columns: 1fr; gap: 0; } }
+.staff-customer-menu { position: fixed; z-index: 1100; min-width: 240px; }
+.staff-customer-menu .ant-dropdown-menu { padding: 4px 0; margin: 0; }
+.staff-customer-menu li { list-style: none; }
+.staff-customer-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: 0; background: transparent; color: #595959; font-size: 14px; text-align: left; line-height: 18px; }
+.staff-customer-menu button i { width: 15px; text-align: center; color: #595959; font-size: 13px; }
+.staff-customer-menu button:hover, .staff-customer-menu button:focus-visible { background: #e6f0fc; outline: none; }
+.staff-customer-menu #action-delete { color: #d4380d; }
+#customer-detail-dialog { font-size: 14px; }
+#customer-detail-content { margin: 20px 0; }
+#customer-detail-content svg { display: block; margin: 0 auto 18px; max-width: 100%; height: auto; }
+#customer-detail-content input { width: 100%; }
+#customer-detail-content th, #customer-detail-content td { padding: 10px 8px; border-bottom: 1px solid #e4e9f3; }
+#customer-detail-pagination { margin-bottom: 20px; }
+#message, .form-error { padding: 12px; background: #e2f1e7; white-space: pre-wrap; }
+.activity-table th, .activity-table td { white-space: normal; vertical-align: top; padding: 12px; }
+.activity-table { table-layout: fixed; min-width: 620px; }
+.activity-table th:nth-child(1) { width: 25%; }
+.activity-table th:nth-child(2) { width: 28%; }
+.activity-table th:nth-child(3) { width: 18%; }
+.activity-table th:nth-child(4) { width: 29%; }
+.activity-table td:first-child { min-width: 120px; }
+.activity-actor { white-space: nowrap; }
+.activity-table td:nth-child(2) { min-width: 140px; max-width: 220px; overflow-wrap: anywhere; }
+.activity-details { max-width: 440px; white-space: normal; overflow-wrap: anywhere; }
+.activity-details summary { cursor: pointer; color: #0665d0; }
+.activity-details ul { padding-left: 18px; margin: 12px 0 0; }
+.activity-details li { margin: 6px 0; white-space: pre-wrap; }
+#activity-search-form input { width: 280px; max-width: 100%; }
+#message.error, .form-error { background: #ffe4e4; color: #932526; }
+@media (max-width: 767px) { .staff-card { padding: 16px; } #search-form input { width: min(280px, 100%); } }
