@@ -70,6 +70,23 @@ foreach ($migrations as $file => $class) {
     (new $class())->up();
     (new $class())->up(); // Replay must preserve existing rows and tables.
 }
+// Simulate an SQL-installed site with an existing failed_jobs table but no
+// migration ledger, then run the complete Artisan migration command twice.
+require_once $root . '/database/migrations/2019_08_19_000000_create_failed_jobs_table.php';
+(new CreateFailedJobsTable())->up();
+$app['db']->table('failed_jobs')->insert([
+    'connection' => 'redis', 'queue' => 'test', 'payload' => 'legacy-job',
+    'exception' => 'synthetic failure',
+]);
+for ($attempt = 0; $attempt < 2; $attempt++) {
+    if (\Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]) !== 0) {
+        $errors[] = 'Full Artisan migration command failed on SQL-installed schema.';
+    }
+}
+if ($app['db']->table('migrations')->count() !== count($migrations) + 1 ||
+    $app['db']->table('failed_jobs')->where('payload', 'legacy-job')->count() !== 1) {
+    $errors[] = 'Full migration did not record all migrations or preserve legacy failed jobs.';
+}
 $legacy = $app['db']->table('v2_user')->where('id', 7)->first();
 if ($legacy->email !== 'legacy@example.com' || $legacy->staff_creator_id !== null || (int) $legacy->staff_customer_limit !== 0) {
     $errors[] = 'Legacy migration changed existing identity/creator/quota unexpectedly.';
@@ -102,5 +119,6 @@ if (empty($environments['*']['V2board']['queue']) || $environments['*']['V2board
 }
 echo 'Real application boot with package discovery: ' . $count . ' routes (' . $applicationRoutes . ' application routes); Staff/Admin views rendered; ' . count($errors) . " errors\n";
 echo "Six migrations replayed on SQLite; legacy identity preserved; knowledge visibility/404 and production worker configuration checked.\n";
+echo "Full Artisan migrate replayed twice without an initial ledger; all seven migrations recorded and legacy failed job preserved.\n";
 foreach ($errors as $error) echo $error . "\n";
 exit($errors ? 1 : 0);

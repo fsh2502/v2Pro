@@ -86,6 +86,8 @@ php artisan view:cache
 Installer hỏi thông tin database và email Admin, rồi in mật khẩu cùng đường dẫn Admin. Lưu lại tại máy chủ; không đăng thông tin này lên GitHub.
 Trang Staff thật nằm tại `https://ten-mien-test/staff`. Đường dẫn Admin là đường dẫn được installer in ra, không phải `/admin-demo`.
 
+Nếu `php artisan migrate:status` báo `Migration table not found`, database chưa có bảng theo dõi migration. Bản cài từ SQL có thể vẫn có các bảng ứng dụng và CTV. Nhánh test đã xử lý việc bảng `failed_jobs` tồn tại trước đó; dùng bản nhánh mới nhất, chạy `php artisan migrate --force`, rồi kiểm tra lại `php artisan migrate:status`. Không dùng `migrate:fresh` hoặc `migrate:refresh` cho database đang có dữ liệu cần giữ.
+
 Nếu cài thất bại, giữ lại lỗi để xử lý trước khi chạy lại; không xóa `.env` rồi chạy lại installer trên database có dữ liệu cần giữ.
 
 ## Nếu dùng bản sao database hiện có
