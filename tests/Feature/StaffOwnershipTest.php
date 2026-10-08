@@ -1105,6 +1105,47 @@ class StaffOwnershipTest extends TestCase
         $this->assertNotNull($this->owned->fresh()); $this->assertNull($empty->fresh());
     }
 
+    public function test_horizon_accepts_panel_jwt_without_a_laravel_guard_session(): void
+    {
+        $this->app->instance('env', 'production');
+        (new \App\Providers\HorizonServiceProvider($this->app))->boot();
+        $token = (new AuthService($this->admin))->generateAuthData(Request::create('/'))['auth_data'];
+        $request = Request::create('/monitor/api/stats');
+        $request->headers->set('Authorization', $token);
+        $request->setUserResolver(function () { return null; });
+        $this->assertTrue(\Laravel\Horizon\Horizon::check($request));
+        $middleware = new \Laravel\Horizon\Http\Middleware\Authenticate();
+        $response = (new \App\Http\Middleware\Admin())->handle($request, function ($request) use ($middleware) {
+            return $middleware->handle($request, function () { return response()->json(['status' => 'running']); });
+        });
+        $this->assertSame(200, $response->getStatusCode());
+        $this->admin->update(['banned' => 1]);
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        $this->admin->update(['banned' => 0, 'is_admin' => 0]);
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        $this->admin->update(['is_admin' => 1]);
+        $this->assertTrue(\Laravel\Horizon\Horizon::check($request));
+        (new AuthService($this->admin))->removeAllSession();
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        \Laravel\Horizon\Horizon::auth(function () { return false; });
+    }
+
+    public function test_horizon_rejects_staff_guests_and_forged_identity_even_in_local_environment(): void
+    {
+        $this->app->instance('env', 'local');
+        (new \App\Providers\HorizonServiceProvider($this->app))->boot();
+        $request = Request::create('/monitor/api/stats', 'GET', ['user' => ['id' => $this->admin->id, 'is_admin' => 1]]);
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        $request->headers->set('Authorization', $this->token);
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        $request->headers->set('Authorization', 'invalid-token');
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        $request->headers->remove('Authorization');
+        $request->merge(['auth_data' => ['invalid' => 'type']]);
+        $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+        \Laravel\Horizon\Horizon::auth(function () { return false; });
+    }
+
     public function test_admin_retains_ticket_reply_permission(): void
     {
         $jobs = [];

@@ -98379,7 +98379,9 @@
                             case 0:
                                 return n = new URL(p["a"].serviceHost),
                                 t.next = 3,
-                                Object(d["a"])((null === n || void 0 === n ? void 0 : n.origin) + "/monitor/api/stats");
+                                Object(d["a"])((null === n || void 0 === n ? void 0 : n.origin) + "/monitor/api/stats", null, {
+                                    preserveSessionOnForbidden: !0
+                                });
                             case 3:
                                 r = t.sent,
                                 e.setState({
@@ -100407,13 +100409,15 @@
         }
         function p() {
             return p = s()(h().mark(function e(t, n) {
-                var r, a, s;
+                var r, a, s, preserveSessionOnForbidden;
                 return h().wrap(function(e) {
                     while (1)
                         switch (e.prev = e.next) {
                         case 0:
                             return r = Object(u["c"])(),
                             n = n || {},
+                            preserveSessionOnForbidden = n.preserveSessionOnForbidden === !0,
+                            delete n.preserveSessionOnForbidden,
                             n.headers = n.headers || {},
                             n.credentials = "include",
                             r && (n.headers.authorization = r),
@@ -100423,7 +100427,7 @@
                         case 8:
                             if (a = e.sent,
                             s = {},
-                            "application/json" !== a.headers.get("content-type")) {
+                            (a.headers.get("content-type") || "").split(";")[0].trim().toLowerCase() !== "application/json") {
                                 e.next = 16;
                                 break
                             }
@@ -100442,7 +100446,7 @@
                                 buffer: e.t0
                             };
                         case 20:
-                            if (403 !== a.status) {
+                            if (403 !== a.status || preserveSessionOnForbidden) {
                                 e.next = 24;
                                 break
                             }
@@ -100525,9 +100529,9 @@
                 body: n ? JSON.stringify(t) : g(t)
             })
         }
-        function y(e, t) {
+        function y(e, t, options) {
             var n = g(t);
-            return d(n ? e + (e.indexOf("?") > 0 ? "&" : "?") + n : e, null)
+            return d(n ? e + (e.indexOf("?") > 0 ? "&" : "?") + n : e, options)
         }
     },
     t9FE: function(e, t, n) {

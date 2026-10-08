@@ -63,3 +63,28 @@ API CTV đã thử hoạt động đúng trên staging; giao diện Staff đã q
 Theo đầu ra chủ website cung cấp: PHP CLI 8.3.33, AdapterMan 0.7.1, Composer platform check thành công, config cache/view clear thành công và bảy migration đã chạy. Dependency/lock thực tế trên VPS chưa được đưa vào bản phát hành Git để cố định môi trường.
 
 Rà soát cục bộ trước đó: [deployment-review-2026-10-08.md](deployment-review-2026-10-08.md). Hướng dẫn staging: [README-TEST.md](../README-TEST.md).
+
+## Sửa lỗi Admin quay lại đăng nhập — kiểm tra tiếp ngày 08/10/2026
+
+Đã xác định yêu cầu còn thiếu trong đợt kiểm tra dashboard ban đầu: `/monitor/api/stats`. Với JWT Admin hợp lệ và định danh HTTP đã được cho phép, website trả **HTTP 403, application/json, message rỗng**, trong khi `/api/v1/fdb3c557/config/fetch?key=site` trả HTTP 200. Phản hồi monitor này khác lỗi Cloudflare 1010 đã quan sát trước đó.
+
+Dashboard gọi API Horizon monitor ngay khi mở. Provider Horizon mặc định kiểm tra Laravel guard và gate có danh sách email rỗng; panel sử dụng JWT, không có phiên Laravel guard. Horizon từ chối request, rồi helper Admin xóa token và tải lại trang vì HTTP 403.
+
+Bản sửa:
+
+- Horizon xác thực JWT bằng AuthService của panel, đọc lại quyền Admin/trạng thái khóa từ database; không dùng ngoại lệ môi trường local để mở quyền.
+- Chỉ yêu cầu kiểm tra trạng thái monitor được giữ phiên khi gặp HTTP 403. Các API chính vẫn xóa phiên và điều hướng khi xác thực bị từ chối. Tùy chọn này không được gửi lên URL/header/body.
+- Helper đọc được JSON có `charset`; tăng phiên bản asset lên `1.7.5.2685.2225`.
+
+Kiểm tra cục bộ: 65 bài PHP, 659 xác nhận; bốn bộ JavaScript gồm helper request thực tế trong bundle; bootstrap 213 routes, render hai giao diện và replay migration thành công. Test Horizon kiểm tra Admin có JWT nhưng không có Laravel guard, khóa/thu hồi Admin, thu hồi session, Staff/guest/token sai và giả mạo trường user. Bộ dependency cục bộ vẫn mượn từ checkout khác, như báo cáo trước.
+
+**Chưa xác nhận bản sửa trên VPS** cho tới khi chủ website kéo commit mới và khởi động lại PHP/process phục vụ web. Lệnh cập nhật (không cần migration hoặc Composer cho bản sửa này):
+
+```bash
+cd /www/wwwroot/v2pro-test
+git pull --ff-only origin test/ctv-20261008
+php artisan config:cache
+php artisan view:clear
+```
+
+Sau đó restart đúng PHP của website trong aaPanel nếu dùng PHP-FPM; nếu dùng process Workerman phục vụ web thì restart process của website test. Việc khởi động lại bảo đảm provider/OPcache cũ không còn được dùng. Tải lại trang Admin và kiểm chứng dashboard, Quản Lý CTV và monitor với Admin; Staff/guest phải tiếp tục bị từ chối monitor.

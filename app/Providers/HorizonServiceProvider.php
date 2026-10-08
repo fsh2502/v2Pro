@@ -3,7 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use App\Models\User;
+use App\Services\AuthService;
 use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
 
@@ -26,18 +27,20 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     }
 
     /**
-     * Register the Horizon gate.
-     *
-     * This gate determines who can access Horizon in non-local environments.
+     * Horizon uses the panel's JWT sessions, not Laravel's session guard.
+     * Check the current database role so cached claims cannot retain access.
      *
      * @return void
      */
-    protected function gate()
+    protected function authorization()
     {
-        Gate::define('viewHorizon', function ($user) {
-            return in_array($user->email, [
-                //
-            ]);
+        Horizon::auth(function (Request $request) {
+            $authorization = $request->input('auth_data') ?? $request->header('authorization');
+            if (!is_string($authorization) || $authorization === '') return false;
+            $identity = AuthService::decryptAuthData($authorization);
+            if (!$identity) return false;
+            $user = User::find($identity['id']);
+            return $user && $user->is_admin && !$user->banned;
         });
     }
 }
