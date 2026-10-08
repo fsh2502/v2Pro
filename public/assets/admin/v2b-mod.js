@@ -33,7 +33,13 @@
   }
 
   function loadDictionary() {
-    fetch(DICT_URL)
+    // vi-VN.js already provides the dictionary on normal installs.
+    const dictionaryUrl = window.DICT_URL;
+    if (typeof dictionaryUrl !== 'string' || !dictionaryUrl.trim()) {
+      translatePage();
+      return;
+    }
+    fetch(dictionaryUrl)
       .then(res => res.json())
       .then(dict => {
         window.zhViDictionary = dict;
