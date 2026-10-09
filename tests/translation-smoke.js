@@ -14,6 +14,8 @@ for (const dictionary of [admin, user]) {
     }
 }
 assert.equal(admin['比例'], 'Tỷ lệ');
+assert.equal(admin['显示'], 'Hiển thị');
+assert.equal(admin['显隐'], 'Hiển thị');
 assert.equal(user['工单历史'], 'Lịch sử hỗ trợ');
 assert.match(user['快速将节点导入对应客户端进行使用'], /Nhập nhanh/);
 assert.match(user['不会使用，查看使用教程'], /Xem hướng dẫn/);

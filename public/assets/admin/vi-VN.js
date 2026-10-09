@@ -590,7 +590,7 @@ window.zhViDictionary = {
   '长期有效' : 'Vĩnh Viễn',
   '添加公告' : 'Thêm thông báo',
   '标题' : 'Tiêu đề',
-  '显示' : 'Show',
+  '显示' : 'Hiển thị',
   '编辑公告' : 'Chỉnh sửa thông báo',
   '请输入公告标题' : 'Nhập tiêu đề',
   '请输入公告内容' : 'Nội dung thông báo',
