@@ -1146,6 +1146,101 @@ class StaffOwnershipTest extends TestCase
         \Laravel\Horizon\Horizon::auth(function () { return false; });
     }
 
+    public function horizonEnvironmentCases(): array
+    {
+        return [['production'], ['local'], ['staging']];
+    }
+
+    /** @dataProvider horizonEnvironmentCases */
+    public function test_horizon_middleware_handles_cold_and_warm_panel_sessions_in_each_environment(string $environment): void
+    {
+        $this->app->instance('env', $environment);
+        (new \App\Providers\HorizonServiceProvider($this->app))->boot();
+        try {
+            foreach ([$this->admin, $this->a, $this->owned] as $account) {
+                $token = (new AuthService($account))->generateAuthData(Request::create('/'))['auth_data'];
+                foreach (['header', 'auth_data'] as $transport) {
+                    Cache::forget($token);
+                    $request = Request::create('/monitor/api/stats', 'GET', $transport === 'auth_data' ? ['auth_data' => $token] : []);
+                    if ($transport === 'header') $request->headers->set('Authorization', $token);
+                    $request->setUserResolver(function () { return null; });
+                    // First request decodes the JWT; subsequent requests use cached identity.
+                    for ($attempt = 0; $attempt < 3; $attempt++) {
+                        $expectedStatus = $account->is_admin ? 200 : 403;
+                        $this->assertSame((bool) $account->is_admin, \Laravel\Horizon\Horizon::check($request));
+                        try {
+                            $response = (new \App\Http\Middleware\Admin())->handle($request, function ($request) {
+                                return (new \Laravel\Horizon\Http\Middleware\Authenticate())->handle($request, function () {
+                                    return response()->json(['status' => 'running']);
+                                });
+                            });
+                            $status = $response->getStatusCode();
+                        } catch (HttpException $exception) {
+                            $status = $exception->getStatusCode();
+                        }
+                        $this->assertSame($expectedStatus, $status, "$environment / $transport / attempt $attempt");
+                    }
+                }
+            }
+        } finally {
+            \Laravel\Horizon\Horizon::auth(function () { return false; });
+        }
+    }
+
+    public function test_horizon_rejects_a_revoked_session_but_keeps_another_admin_session(): void
+    {
+        $this->app->instance('env', 'production');
+        (new \App\Providers\HorizonServiceProvider($this->app))->boot();
+        try {
+            $auth = new AuthService($this->admin);
+            $first = $auth->generateAuthData(Request::create('/'))['auth_data'];
+            $second = $auth->generateAuthData(Request::create('/'))['auth_data'];
+            $requests = [];
+            foreach ([$first, $second] as $token) {
+                $request = Request::create('/monitor/api/stats');
+                $request->headers->set('Authorization', $token);
+                $this->assertTrue(\Laravel\Horizon\Horizon::check($request));
+                $this->assertTrue(Cache::has($token));
+                $requests[] = $request;
+            }
+            $session = array_keys($auth->getSessions())[0];
+            $this->assertTrue($auth->removeSession($session));
+            $this->assertFalse(\Laravel\Horizon\Horizon::check($requests[0]));
+            $this->assertTrue(\Laravel\Horizon\Horizon::check($requests[1]));
+            // Evicting only the identity cache must still accept a live session.
+            Cache::forget($second);
+            $this->assertTrue(\Laravel\Horizon\Horizon::check($requests[1]));
+            $this->admin->delete();
+            $this->assertFalse(\Laravel\Horizon\Horizon::check($requests[1]));
+        } finally {
+            \Laravel\Horizon\Horizon::auth(function () { return false; });
+        }
+    }
+
+    public function test_horizon_rejects_expired_wrongly_signed_and_sessionless_jwt(): void
+    {
+        $this->app->instance('env', 'production');
+        (new \App\Providers\HorizonServiceProvider($this->app))->boot();
+        try {
+            $valid = (new AuthService($this->admin))->generateAuthData(Request::create('/'))['auth_data'];
+            $claims = (array) \Firebase\JWT\JWT::decode($valid, new \Firebase\JWT\Key(config('app.key'), 'HS256'));
+            $tokens = [
+                '',
+                'invalid-token',
+                \Firebase\JWT\JWT::encode($claims + ['exp' => time() - 60], config('app.key'), 'HS256'),
+                \Firebase\JWT\JWT::encode($claims, str_repeat('x', 32), 'HS256'),
+                \Firebase\JWT\JWT::encode(['id' => $this->admin->id, 'session' => 'missing-session'], config('app.key'), 'HS256'),
+            ];
+            foreach ($tokens as $token) {
+                $request = Request::create('/monitor/api/stats');
+                $request->headers->set('Authorization', $token);
+                $this->assertFalse(\Laravel\Horizon\Horizon::check($request));
+            }
+        } finally {
+            \Laravel\Horizon\Horizon::auth(function () { return false; });
+        }
+    }
+
     public function test_admin_retains_ticket_reply_permission(): void
     {
         $jobs = [];
