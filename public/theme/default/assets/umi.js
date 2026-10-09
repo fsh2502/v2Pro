@@ -15980,8 +15980,9 @@
                     title: l.a.createElement("input", {
                         className: "form-control",
                         placeholder: Object(m["formatMessage"])({
-                            id: "\u8bf7\u8f93\u5165\u5145\u503c\u91d1\u989d" + e.props.comm.config.currency
-                        }),
+                            id: "\u8bf7\u8f93\u5165\u5145\u503c\u91d1\u989d{currency}",
+                            defaultMessage: "Enter recharge amount ({currency})"
+                        }, { currency: e.props.comm.config.currency }),
                         onChange: function(event) {
                             e.deposit_amount = event.target.value * 100;
                         },
@@ -44187,6 +44188,7 @@
         "use strict";
         n.r(t);
         n("miYZ");
+        var giftI18n = n("Y2fQ");
         var r = n("tsqr")
           , o = n("p0pE")
           , i = n.n(o)
@@ -44934,20 +44936,20 @@
                                         type: "user/getUserInfo"
                                     });
                                 case 13:
-                                    r["a"].success("\u5151\u6362\u6210\u529f: " + (() => {
+                                    r["a"].success(giftI18n.formatMessage({ id: "兑换成功" }) + ": " + (() => {
                                         switch (u.type) {
                                             case 1:
-                                                return "\u8d26\u6237\u4f59\u989d " + (u.value / 100).toFixed(2);
+                                                return giftI18n.formatMessage({ id: "账户余额 {amount}" }, { amount: (u.value / 100).toFixed(2) });
                                             case 2:
-                                                return "\u8ba2\u9605\u65f6\u957f " + u.value + " \u5929";
+                                                return giftI18n.formatMessage({ id: "订阅时长 {days} 天" }, { days: u.value });
                                             case 3:
-                                                return "\u5957\u9910\u6d41\u91cf " + u.value + " GB";
+                                                return giftI18n.formatMessage({ id: "套餐流量 {traffic} GB" }, { traffic: u.value });
                                             case 4:
-                                                return "\u6d41\u91cf\u5df2\u91cd\u7f6e";
+                                                return giftI18n.formatMessage({ id: "流量已重置" });
                                             case 5:
-                                                return "\u8ba2\u9605\u5957\u9910 " + u.value + " \u5929";
+                                                return giftI18n.formatMessage({ id: "订阅套餐 {days} 天" }, { days: u.value });
                                             default:
-                                                return "\u672a\u77e5\u7c7b\u578b";
+                                                return giftI18n.formatMessage({ id: "未知类型" });
                                         }
                                     })());
                                 case "end":
@@ -50632,7 +50634,7 @@
                     }
                 }, void 0 !== t[0] ? t[0] : d.a.createElement(l["a"], {
                     type: "loading"
-                }), "\u4eba")), d.a.createElement("div", {
+                }), Object(w["formatMessage"])({ id: "\u4eba" }))), d.a.createElement("div", {
                     style: {
                         display: "flex",
                         padding: "5px 0"
@@ -52800,13 +52802,13 @@
                 })
             },
             i18nText: {
-                "zh-CN": "\u7b80\u4f53\u4e2d\u6587",
-                "zh-TW": "\u7e41\u9ad4\u4e2d\u6587",
-                "en-US": "English",
-                "ja-JP": "\u65e5\u672c\u8a9e",
-                "vi-VN": "Ti\u1ebfng Vi\u1ec7t",
-                "ko-KR": "\ud55c\uad6d\uc5b4",
-                "fa-IR": "\u0641\u0627\u0631\u0633\u06cc"
+                get "zh-CN"() { return Object(r["formatMessage"])({ id: "\u7b80\u4f53\u4e2d\u6587", defaultMessage: "\u7b80\u4f53\u4e2d\u6587" }); },
+                get "zh-TW"() { return Object(r["formatMessage"])({ id: "\u7e41\u9ad4\u4e2d\u6587", defaultMessage: "\u7e41\u9ad4\u4e2d\u6587" }); },
+                get "en-US"() { return Object(r["formatMessage"])({ id: "English", defaultMessage: "English" }); },
+                get "ja-JP"() { return Object(r["formatMessage"])({ id: "\u65e5\u672c\u8a9e", defaultMessage: "\u65e5\u672c\u8a9e" }); },
+                get "vi-VN"() { return Object(r["formatMessage"])({ id: "Ti\u1ebfng Vi\u1ec7t", defaultMessage: "Ti\u1ebfng Vi\u1ec7t" }); },
+                get "ko-KR"() { return Object(r["formatMessage"])({ id: "\ud55c\uad6d\uc5b4", defaultMessage: "\ud55c\uad6d\uc5b4" }); },
+                get "fa-IR"() { return Object(r["formatMessage"])({ id: "\u0641\u0627\u0631\u0633\u06cc", defaultMessage: "\u0641\u0627\u0631\u0633\u06cc" }); }
             }
         }
     },
