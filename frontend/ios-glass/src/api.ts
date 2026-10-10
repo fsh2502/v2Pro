@@ -9,6 +9,24 @@ export class ApiError extends Error {
 export type Envelope<T> = { data: T; type?: number; total?: number };
 const sessionMessage =
     /未登录或登陆已过期|未登錄或登陸已過期|phiên đăng nhập.*hết hạn|unauthenticated/i;
+const couponMessages = new Map([
+    ["Invalid coupon", "Mã giảm giá không hợp lệ."],
+    ["Coupon cannot be empty", "Vui lòng nhập mã giảm giá."],
+    ["Coupon failed", "Không thể áp dụng mã giảm giá."],
+    ["This coupon has expired", "Mã giảm giá đã hết hạn."],
+    [
+        "This coupon has not yet started",
+        "Mã giảm giá chưa đến thời gian sử dụng.",
+    ],
+    [
+        "This coupon is no longer available",
+        "Mã giảm giá không còn lượt sử dụng.",
+    ],
+    [
+        "The coupon code cannot be used for this subscription",
+        "Mã giảm giá không áp dụng cho gói này.",
+    ],
+]);
 export function createApi(
     getToken: () => string | null,
     expired: () => void,
@@ -64,7 +82,7 @@ export function createApi(
             throw new ApiError(
                 /[\u3400-\u9fff]/.test(message)
                     ? "Không thể thực hiện yêu cầu. Vui lòng kiểm tra thông tin hoặc liên hệ hỗ trợ."
-                    : message,
+                    : couponMessages.get(message) || message,
                 response.status,
             );
         }

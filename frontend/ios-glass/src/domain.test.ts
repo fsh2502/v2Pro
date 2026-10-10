@@ -153,6 +153,20 @@ describe("API session and errors", () => {
             "dữ liệu không hợp lệ",
         );
     });
+    it("translates live coupon errors without ending the customer session", async () => {
+        let expired = false;
+        const api = createApi(
+            () => "jwt",
+            () => {
+                expired = true;
+            },
+            async () => response({ message: "Invalid coupon" }, 500),
+        );
+        await expect(
+            api("user/coupon/check", { code: "invalid", plan_id: 1 }),
+        ).rejects.toThrow("Mã giảm giá không hợp lệ.");
+        expect(expired).toBe(false);
+    });
     it("reports network failure without deleting a session", async () => {
         let expired = false;
         const api = createApi(

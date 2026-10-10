@@ -118,8 +118,9 @@ export default function Auth({
     const verifying = useRef(false);
     const config = guest.data || {};
     const needsCode =
-        mode === "forget" || (mode === "register" && config.is_email_verify);
-    const needsCaptcha = mode !== "login" && config.is_recaptcha;
+        mode === "forget" ||
+        (mode === "register" && Boolean(config.is_email_verify));
+    const needsCaptcha = mode !== "login" && Boolean(config.is_recaptcha);
     useEffect(() => {
         if (!countdown) return;
         const timer = setTimeout(() => setCountdown((n) => n - 1), 1000);
