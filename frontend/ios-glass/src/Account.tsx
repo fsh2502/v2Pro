@@ -138,10 +138,11 @@ export function Profile() {
                     Hỗ trợ
                 </MenuRow>
             </Card>
-            <details className="account-extras">
-                <summary>
-                    Tiện ích tài khoản <ChevronRight size={17} />
-                </summary>
+            <section
+                className="account-extras"
+                aria-labelledby="account-extras-title"
+            >
+                <h2 id="account-extras-title">Tiện ích tài khoản</h2>
                 <Card className="menu-card">
                     <MenuRow
                         icon={<Wallet />}
@@ -180,7 +181,7 @@ export function Profile() {
                         Đặt lại URL đồng bộ
                     </MenuRow>
                 </Card>
-            </details>
+            </section>
             <Card className="menu-card logout-card">
                 <MenuRow danger icon={<LogOut />} onClick={logout}>
                     Đăng xuất

@@ -1107,24 +1107,12 @@ hr {
 .account-extras {
     margin: 0 0 15px;
 }
-.account-extras > summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.account-extras > h2 {
+    margin: 0 0 9px;
     padding: 5px 16px;
     font-size: 12px;
+    font-weight: 400;
     color: var(--muted);
-    cursor: pointer;
-    list-style: none;
-}
-.account-extras > summary::-webkit-details-marker {
-    display: none;
-}
-.account-extras[open] > summary {
-    margin-bottom: 9px;
-}
-.account-extras[open] > summary svg {
-    transform: rotate(90deg);
 }
 .logout-card {
     margin-bottom: 0;
@@ -2442,7 +2430,7 @@ th {
     .menu-row small {
         font-size: 12px;
     }
-    .account-extras > summary {
+    .account-extras > h2 {
         font-size: 11px;
     }
     .toast {
