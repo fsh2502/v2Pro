@@ -17,7 +17,7 @@ Website: shoptuantruong.cc. Kiểm thử qua trình duyệt, tài khoản khách
 - API lỗi coupon trả tiếng Anh dù header tiếng Việt: theme chuyển các thông báo coupon đã biết sang tiếng Việt, giữ nguyên phiên đăng nhập. Có kiểm thử hồi quy lỗi `Invalid coupon` (500).
 - API trả cờ số 0; React hiển thị `0` khi dùng trực tiếp với `&&` trong biểu mẫu đăng ký/quên mật khẩu. Chuẩn hóa cờ xác minh và CAPTCHA sang boolean.
 
-Build TypeScript/Vite và 11 kiểm thử frontend đã qua sau hai sửa đổi. Website cần tải commit chứa hai sửa đổi để áp dụng; không coi bản đang chạy trước khi cập nhật là đã kiểm thử hai bản vá này.
+Build TypeScript/Vite và 11 kiểm thử frontend đã qua sau hai sửa đổi. Sau khi người dùng cập nhật `473e05d5`, đã xác minh qua DOM website tải `main-7_9dK_WR.js`: lỗi coupon hiện “Mã giảm giá không hợp lệ.” và hai biểu mẫu đăng ký/quên mật khẩu không còn ký tự `0` thừa. Lượt kiểm tra cuối không ghi lỗi/cảnh báo JavaScript trong trang khách hàng. Theme được giữ kích hoạt.
 
 ## Phạm vi chưa kiểm thử giao dịch
 
