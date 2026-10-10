@@ -85,7 +85,7 @@ describe("import links", () => {
             "https://example.com/sub?flag=old&token=x",
             "Demo",
         );
-        const parsed = new URL(result);
+        const parsed = new URL(result!);
         expect(
             new URL(parsed.searchParams.get("url")!).searchParams.getAll(
                 "flag",

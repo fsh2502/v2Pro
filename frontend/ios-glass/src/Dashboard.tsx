@@ -31,6 +31,14 @@ import {
 } from "./ui";
 import { brand } from "./App";
 import {
+    detectSyncPlatform,
+    getSyncClient,
+    syncClients,
+    syncPlatforms,
+    type SyncPlatform,
+} from "./clients";
+import {
+    clientSubscriptionUrl,
     date,
     gb,
     GIB,
@@ -381,13 +389,26 @@ export function Dashboard() {
 }
 export function Sync() {
     const { sub, go, run, notify } = useApp();
+    const [platform, setPlatform] = useState<SyncPlatform>(() =>
+        detectSyncPlatform(navigator.userAgent),
+    );
     const [client, setClient] = useState("hiddify");
     const [qr, setQr] = useState("");
     const url = httpUrl(sub.subscribe_url || "");
+    const selectedClient = getSyncClient(client);
+    const clientUrl = url ? clientSubscriptionUrl(client, url) : null;
+    const appUrl = url
+        ? importUrl(client, url, sub.profile_name || brand)
+        : null;
+    const choosePlatform = (next: SyncPlatform) => {
+        setPlatform(next);
+        if (!selectedClient.platforms.includes(next)) setClient("hiddify");
+    };
     useEffect(() => {
         let active = true;
-        if (url)
-            QRCode.toDataURL(url, {
+        setQr("");
+        if (clientUrl)
+            QRCode.toDataURL(clientUrl, {
                 width: 256,
                 margin: 2,
                 color: { dark: "#16304b", light: "#ffffff" },
@@ -401,7 +422,7 @@ export function Sync() {
         return () => {
             active = false;
         };
-    }, [url]);
+    }, [clientUrl]);
     return (
         <>
             <PageTitle title="Đồng bộ ứng dụng" back="dashboard" />
@@ -409,53 +430,71 @@ export function Sync() {
                 <Card className="sync-card">
                     <h2>Nhập cấu hình vào ứng dụng</h2>
                     <p>Chọn ứng dụng bạn đang sử dụng</p>
+                    <div
+                        className="client-platforms"
+                        role="group"
+                        aria-label="Nền tảng thiết bị"
+                    >
+                        {syncPlatforms.map(({ id, name }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                aria-pressed={platform === id}
+                                onClick={() => choosePlatform(id)}
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
                     <fieldset className="client-options">
                         <legend className="sr-only">Ứng dụng</legend>
-                        {[
-                            { id: "hiddify", name: "Hiddify", icon: BarChart3 },
-                            {
-                                id: "shadowrocket",
-                                name: "Shadowrocket",
-                                icon: Rocket,
-                            },
-                            { id: "sing-box", name: "Sing-box", icon: Box },
-                        ].map(({ id, name, icon: Icon }) => (
-                            <label
-                                key={id}
-                                className={`client-option ${client === id ? "selected" : ""}`}
-                            >
-                                <span className={`client-icon ${id}`}>
-                                    <Icon />
-                                </span>
-                                <strong>{name}</strong>
-                                <input
-                                    type="radio"
-                                    name="client"
-                                    value={id}
-                                    checked={client === id}
-                                    onChange={() => setClient(id)}
-                                />
-                                <ChevronRight size={17} />
-                            </label>
-                        ))}
+                        {syncClients
+                            .filter((item) => item.platforms.includes(platform))
+                            .map(({ id, name }) => (
+                                <label
+                                    key={id}
+                                    className={`client-option ${client === id ? "selected" : ""}`}
+                                >
+                                    <span className={`client-icon ${id}`}>
+                                        {id === "shadowrocket" ? (
+                                            <Rocket />
+                                        ) : id === "hiddify" ? (
+                                            <BarChart3 />
+                                        ) : (
+                                            <Box />
+                                        )}
+                                    </span>
+                                    <strong>{name}</strong>
+                                    <input
+                                        type="radio"
+                                        name="client"
+                                        value={id}
+                                        checked={client === id}
+                                        onChange={() => setClient(id)}
+                                    />
+                                    <ChevronRight size={17} />
+                                </label>
+                            ))}
                     </fieldset>
                     {url ? (
                         <>
-                            <a
-                                className="button primary"
-                                href={importUrl(
-                                    client,
-                                    url,
-                                    sub.profile_name || brand,
-                                )}
-                            >
-                                Mở trong ứng dụng <ExternalLink size={17} />
-                            </a>
+                            {appUrl ? (
+                                <a className="button primary" href={appUrl}>
+                                    Mở trong {selectedClient.name}{" "}
+                                    <ExternalLink size={17} />
+                                </a>
+                            ) : (
+                                <p className="sync-hint">
+                                    Nekoray: sao chép URL bên dưới, mở phần quản
+                                    lý nhóm đăng ký trong ứng dụng, thêm nhóm và
+                                    dán URL.
+                                </p>
+                            )}
                             <button
                                 className="button neutral"
                                 onClick={() =>
                                     run(
-                                        () => copy(url),
+                                        () => copy(clientUrl!),
                                         "Đã sao chép URL đồng bộ.",
                                     )
                                 }
@@ -464,7 +503,9 @@ export function Sync() {
                                 Sao chép URL
                             </button>
                             <small className="sync-hint">
-                                Cần cài đặt ứng dụng đã chọn trước khi mở.
+                                URL và mã QR dùng định dạng dành cho{" "}
+                                {selectedClient.name}. Cần cài đặt ứng dụng để
+                                đồng bộ.
                             </small>
                         </>
                     ) : (
@@ -474,7 +515,7 @@ export function Sync() {
                     )}
                 </Card>
                 <Card className="qr-card">
-                    <h2>Mã QR</h2>
+                    <h2>Mã QR · {selectedClient.name}</h2>
                     {qr ? (
                         <img
                             className="qr-image"

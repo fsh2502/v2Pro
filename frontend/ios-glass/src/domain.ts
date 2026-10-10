@@ -1,3 +1,5 @@
+import { getSyncClient } from "./clients";
+
 export type Row = Record<string, any>;
 export const GIB = 1073741824;
 export const periods: Record<string, string> = {
@@ -72,25 +74,59 @@ export function httpUrl(value: string): string | null {
         return null;
     }
 }
-export function importUrl(client: string, raw: string, name: string) {
+export function clientSubscriptionUrl(client: string, raw: string) {
+    const definition = getSyncClient(client);
     const safe = httpUrl(raw);
     if (!safe) throw new Error("URL đồng bộ không hợp lệ.");
     const url = new URL(safe);
     url.hash = "";
-    url.searchParams.set("flag", client === "sing-box" ? "singbox" : client);
-    const source = url.href;
-    if (client === "hiddify")
+    url.searchParams.set("flag", definition.flag);
+    url.searchParams.delete("raw");
+    if (definition.scheme === "incy") url.searchParams.set("raw", "1");
+    return url.href;
+}
+export function importUrl(client: string, raw: string, name: string) {
+    const definition = getSyncClient(client);
+    const source = clientSubscriptionUrl(client, raw);
+    const encodedSource = encodeURIComponent(source);
+    const encodedName = encodeURIComponent(name);
+    if (definition.scheme === "hiddify")
         return `hiddify://import/${source}#${encodeURIComponent(name)}`;
-    if (client === "sing-box")
+    if (definition.scheme === "sing-box")
         return `sing-box://import-remote-profile?url=${encodeURIComponent(source)}#${encodeURIComponent(name)}`;
-    if (client === "shadowrocket")
+    if (definition.scheme === "shadowrocket")
         return `shadowrocket://add/sub://${btoa(
             unescape(encodeURIComponent(source)),
         )
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/, "")}?remark=${encodeURIComponent(name)}`;
-    throw new Error("Ứng dụng không được hỗ trợ.");
+    switch (definition.scheme) {
+        case "surge":
+            return `surge:///install-config?url=${encodedSource}&name=${encodedName}`;
+        case "stash":
+            return `stash://install-config?url=${encodedSource}&name=${encodedName}`;
+        case "quantumult-x":
+            return `quantumult-x:///update-configuration?remote-resource=${encodeURIComponent(JSON.stringify({ server_remote: [`${source}, tag=${encodedName}`] }))}`;
+        case "loon":
+            return `loon://import?nodelist=${encodedSource}&name=${encodedName}`;
+        case "v2rayng":
+            return `v2rayng://install-sub?url=${encodedSource}#${encodedName}`;
+        case "clash":
+            return `clash://install-config?url=${encodedSource}&name=${encodedName}`;
+        case "surfboard":
+            return `surfboard:///install-config?url=${encodedSource}&name=${encodedName}`;
+        case "happ":
+            return `happ://add/${source}`;
+        case "karing":
+            return `karing://install-config?url=${encodedSource}&name=${encodedName}`;
+        case "v2box":
+            return `v2box://install-sub?url=${encodedSource}&name=${encodedName}`;
+        case "incy":
+            return `incy://import/${source}`;
+        case "manual":
+            return null;
+    }
 }
 export function trafficWeek(logs: Row[], now = new Date()) {
     const days = Array.from({ length: 7 }, (_, i) => {
