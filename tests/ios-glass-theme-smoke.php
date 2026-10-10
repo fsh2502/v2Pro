@@ -10,6 +10,14 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Facade;
 
 $root = dirname(__DIR__);
+$themeSchema = json_decode(file_get_contents($root . '/public/theme/ios-glass/config.json'), true, 512, JSON_THROW_ON_ERROR);
+foreach ($themeSchema['configs'] as $field) {
+    if ($field['field_type'] === 'select' &&
+        (empty($field['select_options']) || !is_array($field['select_options']) ||
+         !array_key_exists($field['default_value'], $field['select_options']))) {
+        throw new RuntimeException('Theme select must supply select_options compatible with the Admin renderer.');
+    }
+}
 $scratch = $root . '/artifacts/ios-glass-20261010/php-smoke';
 if (!is_dir($scratch)) mkdir($scratch, 0777, true);
 $app = new Application($scratch);
