@@ -98,6 +98,14 @@ export function Profile() {
                     Đổi mật khẩu
                 </MenuRow>
                 <MenuRow
+                    icon={<ShieldCheck />}
+                    onClick={() =>
+                        modal("Đặt lại URL đồng bộ", <ResetSubscription />)
+                    }
+                >
+                    Đặt lại URL đồng bộ
+                </MenuRow>
+                <MenuRow
                     icon={<Bell />}
                     onClick={() => modal("Thông báo", <NotificationSettings />)}
                 >
@@ -171,14 +179,6 @@ export function Profile() {
                         onClick={() => modal("Phiên đăng nhập", <Sessions />)}
                     >
                         Phiên đăng nhập
-                    </MenuRow>
-                    <MenuRow
-                        icon={<ShieldCheck />}
-                        onClick={() =>
-                            modal("Đặt lại URL đồng bộ", <ResetSubscription />)
-                        }
-                    >
-                        Đặt lại URL đồng bộ
                     </MenuRow>
                 </Card>
             </section>
