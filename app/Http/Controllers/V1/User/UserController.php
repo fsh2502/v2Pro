@@ -10,10 +10,12 @@ use App\Http\Requests\User\UserUpdate;
 use App\Models\Giftcard;
 use App\Models\Order;
 use App\Models\Plan;
+use App\Models\StaffPlan;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\OrderService;
+use App\Services\SubscriptionNameService;
 use App\Services\UserService;
 use App\Utils\CacheKey;
 use App\Utils\Helper;
@@ -346,6 +348,14 @@ class UserController extends Controller
         $user['alive_ip'] = $countalive;
 
         $user['subscribe_url'] = Helper::getSubscribeUrl($user['token']);
+
+        // Keep import names consistent with CTV subscription branding. Only
+        // public plan metadata is exposed; Staff plan prices/ACLs stay private.
+        $identity = User::find($request->user['id']);
+        $user['profile_name'] = $identity ? SubscriptionNameService::forUser($identity) : config('v2board.app_name', 'V2Board');
+        $user['staff_plan'] = $identity && $identity->staff_plan_id
+            ? StaffPlan::select('name')->find($identity->staff_plan_id)
+            : null;
 
         $userService = new UserService();
         $user['reset_day'] = $userService->getResetDay($user);

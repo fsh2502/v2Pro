@@ -28,8 +28,10 @@ class ThemeService
             $data[$config['field_name']] = isset($config['default_value']) ? $config['default_value'] : '';
         }
 
+        $defaults = $data;
         $data = var_export($data, 1);
         try {
+            File::ensureDirectoryExists(base_path() . '/config/theme/');
             if (!File::put(base_path() . "/config/theme/{$this->theme}.php", "<?php\n return $data ;")) {
                 abort(500, "{$this->theme}初始化失败");
             }
@@ -39,9 +41,10 @@ class ThemeService
 
         try {
             Artisan::call('config:cache');
-            while (true) {
-                if (config("theme.{$this->theme}")) break;
-            }
+            // config:cache builds a fresh application; it does not reload the
+            // configuration repository of this request. Publish defaults here
+            // so first-time theme discovery/rendering returns without polling.
+            config(["theme.{$this->theme}" => $defaults]);
         } catch (\Exception $e) {
             abort(500, "{$this->theme}初始化失败");
         }

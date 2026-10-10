@@ -1,0 +1,16 @@
+{
+  "name": "iOS Glass",
+  "description": "Giao diện khách hàng với thẻ kính, chế độ sáng/tối và thanh điều hướng tối ưu cho điện thoại. Tiếng Việt.",
+  "version": "1.0.0",
+  "images": "/theme/ios-glass/preview.svg",
+  "configs": [
+    {
+      "field_name": "appearance",
+      "field_type": "select",
+      "default_value": "system",
+      "label": "Giao diện mặc định",
+      "options": { "system": "Theo thiết bị", "light": "Sáng", "dark": "Tối" }
+    },
+    { "field_name": "welcome_text", "field_type": "input", "default_value": "Chúc bạn một ngày làm việc hiệu quả", "label": "Lời chào trên trang chủ" }
+  ]
+}
