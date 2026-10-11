@@ -5,6 +5,7 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 # Prepare an already-downloaded release. Never pull or resolve new dependencies here.
 php_bin="${PHP_BIN:-php}"
 command -v "$php_bin" >/dev/null || { echo "Không tìm thấy PHP CLI."; exit 1; }
+"$php_bin" scripts/check-php-runtime.php
 [[ -f .env && -f composer.lock ]] || { echo "Thiếu .env hoặc composer.lock. Đọc readme.md."; exit 1; }
 [[ "${BACKUP_CONFIRMED:-}" == yes ]] || { echo "Sao lưu database/mã nguồn rồi đặt BACKUP_CONFIRMED=yes."; exit 1; }
 "$php_bin" -r 'exit(version_compare(PHP_VERSION, "8.3.30", ">=") ? 0 : 1);' || { echo "Cần PHP 8.3.30 trở lên."; exit 1; }

@@ -5,6 +5,7 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 php_bin="${PHP_BIN:-php}"
 command -v "$php_bin" >/dev/null || { echo "Không tìm thấy PHP CLI."; exit 1; }
+"$php_bin" scripts/check-php-runtime.php
 "$php_bin" -r 'exit(version_compare(PHP_VERSION, "8.3.30", ">=") ? 0 : 1);' || {
     echo "Bản Pro cần PHP 8.3.30 trở lên."
     exit 1

@@ -23,6 +23,8 @@ Bản phát hành của v2Pro dùng Laravel 12, PHP 8.3 và Redis/Horizon, gồm
 
 Tài nguyên iOS Glass đã build trong repo; VPS **không cần Node.js** để phục vụ theme. Node chỉ dành cho người phát triển muốn build lại.
 
+PHP phải có extension `mbstring` thật, gồm hàm `mb_split` (mbregex). Composer có thể báo `ext-mbstring` đạt bằng polyfill trong khi hàm này vẫn thiếu. Trước Artisan/migration, chạy `/www/server/php/83/bin/php scripts/check-php-runtime.php`. Nếu lỗi, kiểm tra `php --ini`, cài/bật mbstring cho cả CLI và PHP-FPM; kiểm tra mbregex không bị tắt khi build và `mb_split` không nằm trong `disable_functions`.
+
 ## Tải mã nguồn
 
 ```bash
@@ -69,6 +71,7 @@ Mã nguồn/vendor/tài nguyên public cần đọc được bởi PHP-FPM/Nginx
 3. Tại release mới, cài dependency và kiểm tra đúng database/cấu trúc thiếu (thay đường dẫn Composer bằng đường dẫn thực):
 
 ```bash
+/www/server/php/83/bin/php scripts/check-php-runtime.php
 /www/server/php/83/bin/php /duong-dan/composer.phar --no-plugins --no-interaction validate --strict --no-check-publish
 /www/server/php/83/bin/php /duong-dan/composer.phar --no-plugins --no-interaction audit --locked --no-dev
 /www/server/php/83/bin/php /duong-dan/composer.phar --no-plugins --no-interaction install --no-dev --prefer-dist --optimize-autoloader --no-scripts

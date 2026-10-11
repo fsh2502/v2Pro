@@ -34,6 +34,8 @@ jobs:
           extensions: mbstring, intl, sodium, pdo_mysql, pdo_sqlite, redis, pcntl, posix
           coverage: none
           tools: composer:v2
+      - run: php scripts/check-php-runtime.php
+      - run: php -n scripts/check-php-runtime.php > /tmp/runtime-check.txt 2>&1 && exit 1 || grep -q 'mb_split' /tmp/runtime-check.txt
       - run: composer validate --strict --no-check-publish
       - run: composer install --no-interaction --prefer-dist --no-plugins --no-scripts
       - run: composer audit --locked --no-dev
