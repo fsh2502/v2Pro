@@ -1,14 +1,14 @@
-name: Pro checks
+name: Max checks
 on:
   push:
-    branches: [Pro]
+    branches: [Max]
   pull_request:
-    branches: [Pro]
+    branches: [Max]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: pro-checks-${{ github.ref }}
+  group: max-checks-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   php:

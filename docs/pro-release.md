@@ -1,6 +1,6 @@
 # Chuẩn bị phát hành Pro
 
-Nhánh Pro kế thừa bản Laravel 12 tại `80b9e154`. Chỉ bộ xem phim `public/xem-phim` được gỡ theo lựa chọn của chủ repo. Các module độc lập, SQL cũ và file phát triển còn lại được giữ trong Git.
+Nhánh Max (trước đây tên Pro) kế thừa bản Laravel 12 tại `80b9e154`. Chỉ bộ xem phim `public/xem-phim` được gỡ theo lựa chọn của chủ repo. Các module độc lập, SQL cũ và file phát triển còn lại được giữ trong Git.
 
 ## Phạm vi hỗ trợ triển khai
 

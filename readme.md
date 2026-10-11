@@ -1,6 +1,6 @@
 # v2Pro Pro
 
-Bản phát hành của v2Pro dùng Laravel 12, PHP 8.3 và Redis/Horizon, gồm panel Admin, quản lý CTV và giao diện khách hàng iOS Glass. Nhánh phát hành: **`Pro`**. Giữ chức năng gói chính, đơn hàng, thanh toán, node, ticket, mã giảm giá, thẻ quà tặng và các định dạng đăng ký hiện có.
+Bản phát hành của v2Pro dùng Laravel 12, PHP 8.3 và Redis/Horizon, gồm panel Admin, quản lý CTV và giao diện khách hàng iOS Glass. Nhánh phát hành: **`Max`**. Giữ chức năng gói chính, đơn hàng, thanh toán, node, ticket, mã giảm giá, thẻ quà tặng và các định dạng đăng ký hiện có.
 
 ## Chức năng chính
 
@@ -26,11 +26,11 @@ Tài nguyên iOS Glass đã build trong repo; VPS **không cần Node.js** để
 ## Tải mã nguồn
 
 ```bash
-git clone --branch Pro --single-branch https://github.com/fsh2502/v2Pro.git /www/wwwroot/v2pro-pro
+git clone --branch Max --single-branch https://github.com/fsh2502/v2Pro.git /www/wwwroot/v2pro-pro
 cd /www/wwwroot/v2pro-pro
 ```
 
-Hoặc tải [ZIP nhánh Pro](https://github.com/fsh2502/v2Pro/archive/refs/heads/Pro.zip), giải nén vào thư mục website. ZIP GitHub loại các file chỉ dùng phát triển theo `.gitattributes`. Vendor không nằm trong repo/ZIP: vẫn phải cài Composer.
+Hoặc tải [ZIP nhánh Max](https://github.com/fsh2502/v2Pro/archive/refs/heads/Max.zip), giải nén vào thư mục website. ZIP GitHub loại các file chỉ dùng phát triển theo `.gitattributes`. Vendor không nằm trong repo/ZIP: vẫn phải cài Composer.
 
 ## Cài mới trên aaPanel
 
@@ -65,7 +65,7 @@ Mã nguồn/vendor/tài nguyên public cần đọc được bởi PHP-FPM/Nginx
 **Không chạy installer, không nhập database test đè database thật, không sao chép vendor/composer.lock cũ, không chạy `key:generate`, `migrate:fresh` hoặc `migrate:refresh`.**
 
 1. Sao lưu database, source, `.env`, `config/v2board.php`, `config/theme`, storage và các tài nguyên public tùy chỉnh. Thử khôi phục bản sao vào database staging riêng. Dừng các tích hợp gửi thư/Telegram/thanh toán thật trên staging.
-2. Tải nhánh Pro vào **thư mục release mới**. Giữ `.env`, APP_KEY và cấu hình từ website cũ; sao chép file cá nhân cần dùng. Không chép `bootstrap/cache` hoặc compiled views từ bản cũ. Cài vendor từ lock mới.
+2. Tải nhánh Max vào **thư mục release mới**. Giữ `.env`, APP_KEY và cấu hình từ website cũ; sao chép file cá nhân cần dùng. Không chép `bootstrap/cache` hoặc compiled views từ bản cũ. Cài vendor từ lock mới.
 3. Tại release mới, cài dependency và kiểm tra đúng database/cấu trúc thiếu (thay đường dẫn Composer bằng đường dẫn thực):
 
 ```bash
@@ -156,10 +156,10 @@ npm test
 npm run build
 ```
 
-Workflow `Pro checks` chạy hồi quy PHP, MySQL cô lập, frontend và audit dependency khi nhánh thay đổi; không triển khai website. Chỉ test cô lập được chọn trong `phpunit.xml`; các test mẫu cũ vẫn được giữ nhưng không tham gia suite này. Test local và CI không thay thế kiểm thử SMTP/thanh toán/node với cấu hình của khách hàng. [Danh sách trước phát hành](docs/pro-release.md).
+Workflow `Max checks` chạy hồi quy PHP, MySQL cô lập, frontend và audit dependency khi nhánh thay đổi; không triển khai website. Chỉ test cô lập được chọn trong `phpunit.xml`; các test mẫu cũ vẫn được giữ nhưng không tham gia suite này. Test local và CI không thay thế kiểm thử SMTP/thanh toán/node với cấu hình của khách hàng. [Danh sách trước phát hành](docs/pro-release.md).
 
 ## Giấy phép và thương mại
 
 Giữ nguyên [LICENSE](LICENSE) và thông báo bản quyền upstream khi phân phối. Thư viện/font đi kèm có giấy phép riêng trong `public/theme/ios-glass/`; nguồn artwork/icon nằm ở [SOURCES](frontend/ios-glass/src/assets/clients/SOURCES.md) trong checkout phát triển và [ghi chú thành phần](THIRD-PARTY-NOTICES.md). Giấy phép phần mềm không tự cấp quyền với nhãn hiệu/artwork của ứng dụng hoặc Apple; kiểm tra quyền sử dụng các tài sản đó trước khi phân phối thương mại.
 
-Pro là nhánh chuẩn hóa phát hành, không phải cơ chế cấp phép trả phí, chống sao chép hay cam kết mọi tích hợp của mọi khách hàng đã được kiểm thử. Hỗ trợ/vận hành, chính sách dữ liệu, bản sao lưu và phạm vi dịch vụ cần được xác định khi bán sản phẩm.
+Max là nhánh chuẩn hóa phát hành, không phải cơ chế cấp phép trả phí, chống sao chép hay cam kết mọi tích hợp của mọi khách hàng đã được kiểm thử. Hỗ trợ/vận hành, chính sách dữ liệu, bản sao lưu và phạm vi dịch vụ cần được xác định khi bán sản phẩm.

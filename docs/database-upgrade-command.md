@@ -1,6 +1,6 @@
 # Một lệnh bổ sung cấu trúc database cũ
 
-Lệnh có trong nhánh `Pro` và nhánh nâng cấp `codex/laravel12-security`, chạy từ thư mục mã nguồn mới đã cài vendor Laravel 12. Lệnh kết nối database theo cấu hình ứng dụng đang được nạp; giữ nguyên `.env`, APP_KEY và cấu hình website cũ. Nếu đang có config cache trỏ sai database, phải sửa cấu hình/cache trước. Lệnh in tên database trước khi làm việc.
+Lệnh có trong nhánh `Max` và nhánh nâng cấp `codex/laravel12-security`, chạy từ thư mục mã nguồn mới đã cài vendor Laravel 12. Lệnh kết nối database theo cấu hình ứng dụng đang được nạp; giữ nguyên `.env`, APP_KEY và cấu hình website cũ. Nếu đang có config cache trỏ sai database, phải sửa cấu hình/cache trước. Lệnh in tên database trước khi làm việc.
 
 ## Sử dụng
 
