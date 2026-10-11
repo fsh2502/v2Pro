@@ -155,7 +155,7 @@ class FrameworkUpgradeTest extends TestCase
             $table->text('error')->nullable();
             $table->integer('created_at'); $table->integer('updated_at');
         });
-        config(['mail.default' => 'array', 'v2board.email_host' => 'never-connect.example.test']);
+        config(['mail.default' => 'array', 'v2board.email_host' => 'never-connect.example.test', 'v2board.email_template' => 'mail v2']);
         $job = new SendEmailJob([
             'email' => 'recipient@example.test', 'subject' => 'Upgrade regression',
             'template_name' => 'verify', 'template_value' => ['name' => 'Regression', 'code' => '654321', 'url' => 'https://example.test'],
@@ -167,6 +167,7 @@ class FrameworkUpgradeTest extends TestCase
         $email = $messages->first()->getOriginalMessage();
         $this->assertSame('Upgrade regression', $email->getSubject());
         $this->assertStringContainsString('654321', $email->getHtmlBody());
+        $this->assertStringContainsString('Xác minh tài khoản', $email->getHtmlBody());
         $this->assertSame('recipient@example.test', $email->getTo()[0]->getAddress());
         $this->assertSame(1, DB::table('v2_mail_log')->whereNull('error')->count());
     }
