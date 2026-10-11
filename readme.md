@@ -26,8 +26,8 @@ Tài nguyên iOS Glass đã build trong repo; VPS **không cần Node.js** để
 ## Tải mã nguồn
 
 ```bash
-git clone --branch Max --single-branch https://github.com/fsh2502/v2Pro.git /www/wwwroot/v2pro-pro
-cd /www/wwwroot/v2pro-pro
+git clone --branch Max --single-branch https://github.com/fsh2502/v2Pro.git /www/wwwroot/v2pro-max
+cd /www/wwwroot/v2pro-max
 ```
 
 Hoặc tải [ZIP nhánh Max](https://github.com/fsh2502/v2Pro/archive/refs/heads/Max.zip), giải nén vào thư mục website. ZIP GitHub loại các file chỉ dùng phát triển theo `.gitattributes`. Vendor không nằm trong repo/ZIP: vẫn phải cài Composer.
@@ -39,7 +39,7 @@ Hoặc tải [ZIP nhánh Max](https://github.com/fsh2502/v2Pro/archive/refs/head
 3. Có Composer 2 trong PATH hoặc đặt `COMPOSER_PATH` tới file Composer của bạn, chạy:
 
 ```bash
-cd /www/wwwroot/v2pro-pro
+cd /www/wwwroot/v2pro-max
 PHP_BIN=/www/server/php/83/bin/php COMPOSER_PATH=/duong-dan/composer.phar bash init.sh
 ```
 
@@ -48,7 +48,7 @@ Thay `/duong-dan/composer.phar` bằng đường dẫn thực; bỏ `COMPOSER_PA
 4. Thiết lập quyền (ví dụ PHP-FPM aaPanel chạy user `www`):
 
 ```bash
-cd /www/wwwroot/v2pro-pro
+cd /www/wwwroot/v2pro-max
 chown -R www:www storage bootstrap/cache config
 find storage bootstrap/cache config -type d -exec chmod 750 {} +
 find storage bootstrap/cache config -type f -exec chmod 640 {} +
@@ -101,8 +101,8 @@ Nếu cần rollback, trước hết dừng ghi/worker mới và kiểm tra tín
 Dùng mẫu [Supervisor](deploy/supervisor.conf.example), thay đường dẫn release/PHP/user. Chỉ chạy một master Horizon cho site; không để bản cũ và mới cùng tiêu thụ hàng đợi khi chuyển phiên bản.
 
 ```ini
-[program:v2pro-pro]
-directory=/www/wwwroot/v2pro-pro
+[program:v2pro-max]
+directory=/www/wwwroot/v2pro-max
 command=/www/server/php/83/bin/php artisan horizon
 user=www
 autostart=true
@@ -112,13 +112,13 @@ stopwaitsecs=3600
 stopasgroup=true
 killasgroup=true
 redirect_stderr=true
-stdout_logfile=/www/wwwroot/v2pro-pro/storage/logs/horizon.log
+stdout_logfile=/www/wwwroot/v2pro-max/storage/logs/horizon.log
 ```
 
 Thêm lịch cron chạy mỗi phút với user `www`, đúng PHP và release:
 
 ```cron
-* * * * * cd /www/wwwroot/v2pro-pro && /www/server/php/83/bin/php artisan schedule:run >> /www/wwwroot/v2pro-pro/storage/logs/scheduler.log 2>&1
+* * * * * cd /www/wwwroot/v2pro-max && /www/server/php/83/bin/php artisan schedule:run >> /www/wwwroot/v2pro-max/storage/logs/scheduler.log 2>&1
 ```
 
 Theo dõi dung lượng và xoay log. Kiểm tra `php artisan horizon:status` và Admin → Trạng thái hệ thống. Không đặt task cron trùng trong aaPanel và crontab.
