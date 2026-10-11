@@ -947,6 +947,8 @@ hr {
     display: inline-flex;
     width: 43px;
     height: 43px;
+    flex-shrink: 0;
+    overflow: hidden;
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.7);
@@ -955,16 +957,11 @@ hr {
     box-shadow: 0 3px 10px rgba(100, 145, 200, 0.08);
     color: #8a72ff;
 }
-.client-icon svg {
-    width: 29px;
-    height: 29px;
-    stroke-width: 2.5;
-}
-.client-icon.shadowrocket {
-    color: #4c94ff;
-}
-.client-icon.sing-box {
-    color: #06aeb2;
+.client-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 .client-option input {
     width: 18px;

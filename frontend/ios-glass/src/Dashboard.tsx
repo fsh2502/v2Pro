@@ -11,10 +11,8 @@ import {
     ExternalLink,
     Layers3,
     RefreshCw,
-    Rocket,
     TrendingUp,
     UserRound,
-    Box,
 } from "lucide-react";
 import QRCode from "qrcode";
 import DOMPurify from "dompurify";
@@ -30,6 +28,7 @@ import {
     useResource,
 } from "./ui";
 import { brand } from "./App";
+import { clientIcons } from "./client-icons";
 import {
     detectSyncPlatform,
     getSyncClient,
@@ -447,13 +446,14 @@ export function Sync() {
                                         className={`client-option ${client === id ? "selected" : ""}`}
                                     >
                                         <span className={`client-icon ${id}`}>
-                                            {id === "shadowrocket" ? (
-                                                <Rocket />
-                                            ) : id === "hiddify" ? (
-                                                <BarChart3 />
-                                            ) : (
-                                                <Box />
-                                            )}
+                                            <img
+                                                src={clientIcons[id]}
+                                                alt=""
+                                                width={43}
+                                                height={43}
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
                                         </span>
                                         <strong>{name}</strong>
                                         <input

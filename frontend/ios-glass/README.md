@@ -63,6 +63,8 @@ Nguồn định dạng import: [Hiddify](https://github.com/hiddify/hiddify-app/
 
 Trang đồng bộ tự nhận diện hệ điều hành của thiết bị qua User-Agent và số điểm chạm (để nhận diện iPad dùng chế độ desktop). Chỉ hiển thị ứng dụng thuộc nền tảng đã nhận diện; không có các nút chọn hệ điều hành. Nếu chưa nhận diện được, vẫn có URL và QR để nhập thủ công, không tự gán thiết bị thành iOS.
 
+Mỗi ứng dụng có icon riêng được lưu cùng theme. Happ/Karing/V2BOX/Incy/Hiddify/Loon/Quantumult X/Sing-box dùng artwork App Store; các icon còn lại dùng bộ EZ-Theme. Nguồn từng file được ghi trong [src/assets/clients/SOURCES.md](src/assets/clients/SOURCES.md).
+
 - iOS: Shadowrocket, Surge, Stash, Quantumult X, Hiddify, Sing-box, Loon, Happ, Karing, V2BOX, Incy.
 - Android: FlClash, v2rayNG, Clash, Surfboard, Clash Meta, NekoBox, Sing-box, Hiddify, Happ, Karing, V2BOX, Incy.
 - Windows: FlClash, Clash Verge, Clash, Nekoray, Sing-box, Hiddify, Happ, Karing.

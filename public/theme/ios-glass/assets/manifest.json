@@ -27,15 +27,94 @@
     "file": "inter-vietnamese-wght-normal-CBcvBZtf.woff2",
     "src": "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2"
   },
+  "src/assets/clients/clash-meta.png": {
+    "file": "clash-meta-CVM29Kz7.png",
+    "src": "src/assets/clients/clash-meta.png"
+  },
+  "src/assets/clients/clashverge.png": {
+    "file": "clashverge-Cg9arrE_.png",
+    "src": "src/assets/clients/clashverge.png"
+  },
+  "src/assets/clients/clashx-meta.jpg": {
+    "file": "clashx-meta-B28VPFUW.jpg",
+    "src": "src/assets/clients/clashx-meta.jpg"
+  },
+  "src/assets/clients/clashx.png": {
+    "file": "clashx-DY4TjspB.png",
+    "src": "src/assets/clients/clashx.png"
+  },
+  "src/assets/clients/flclash.png": {
+    "file": "flclash-Brdn5CkF.png",
+    "src": "src/assets/clients/flclash.png"
+  },
+  "src/assets/clients/happ.jpg": {
+    "file": "happ-PspSyxiD.jpg",
+    "src": "src/assets/clients/happ.jpg"
+  },
+  "src/assets/clients/hiddify.jpg": {
+    "file": "hiddify-xSScZ3ql.jpg",
+    "src": "src/assets/clients/hiddify.jpg"
+  },
+  "src/assets/clients/incy.jpg": {
+    "file": "incy-BbutWIEP.jpg",
+    "src": "src/assets/clients/incy.jpg"
+  },
+  "src/assets/clients/karing.jpg": {
+    "file": "karing-BL8s9T46.jpg",
+    "src": "src/assets/clients/karing.jpg"
+  },
+  "src/assets/clients/loon.jpg": {
+    "file": "loon-CDa7HfeY.jpg",
+    "src": "src/assets/clients/loon.jpg"
+  },
+  "src/assets/clients/nekobox.png": {
+    "file": "nekobox-BYKqVuUd.png",
+    "src": "src/assets/clients/nekobox.png"
+  },
+  "src/assets/clients/nekoray.png": {
+    "file": "nekobox-BYKqVuUd.png",
+    "src": "src/assets/clients/nekobox.png"
+  },
+  "src/assets/clients/quantumultx.jpg": {
+    "file": "quantumultx-DTtYC7E6.jpg",
+    "src": "src/assets/clients/quantumultx.jpg"
+  },
+  "src/assets/clients/sing-box.jpg": {
+    "file": "sing-box-B3QBowal.jpg",
+    "src": "src/assets/clients/sing-box.jpg"
+  },
+  "src/assets/clients/stash.png": {
+    "file": "stash-CeCcBOnt.png",
+    "src": "src/assets/clients/stash.png"
+  },
+  "src/assets/clients/v2box.jpg": {
+    "file": "v2box-Cg5VKuqT.jpg",
+    "src": "src/assets/clients/v2box.jpg"
+  },
   "src/main.tsx": {
-    "file": "main-0TmQvGwm.js",
+    "file": "main-CbnFbF-C.js",
     "name": "main",
     "src": "src/main.tsx",
     "isEntry": true,
     "css": [
-      "main-B9ENqYxp.css"
+      "main-TA0Ws3Nx.css"
     ],
     "assets": [
+      "stash-CeCcBOnt.png",
+      "quantumultx-DTtYC7E6.jpg",
+      "hiddify-xSScZ3ql.jpg",
+      "sing-box-B3QBowal.jpg",
+      "loon-CDa7HfeY.jpg",
+      "happ-PspSyxiD.jpg",
+      "karing-BL8s9T46.jpg",
+      "v2box-Cg5VKuqT.jpg",
+      "incy-BbutWIEP.jpg",
+      "flclash-Brdn5CkF.png",
+      "clash-meta-CVM29Kz7.png",
+      "nekobox-BYKqVuUd.png",
+      "clashverge-Cg9arrE_.png",
+      "clashx-DY4TjspB.png",
+      "clashx-meta-B28VPFUW.jpg",
       "inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2",
       "inter-cyrillic-wght-normal-DqGufNeO.woff2",
       "inter-greek-ext-wght-normal-DlzME5K_.woff2",
