@@ -14,7 +14,7 @@ class UserUpdate extends FormRequest
     public function rules()
     {
         return [
-            'email' => 'required|email:strict',
+            'email' => ['bail', 'required', 'string', 'max:64', new \App\Rules\AccountEmail()],
             'password' => 'nullable|min:8',
             'transfer_enable' => 'numeric',
             'device_limit' => 'nullable|integer',
@@ -38,8 +38,7 @@ class UserUpdate extends FormRequest
     public function messages()
     {
         return [
-            'email.required' => '邮箱不能为空',
-            'email.email' => '邮箱格式不正确',
+            'email.required' => __('Email can not be empty'),
             'transfer_enable.numeric' => '流量格式不正确',
             'device_limit.integer' => '设备数限制格式不正确',
             'expired_at.integer' => '到期时间格式不正确',

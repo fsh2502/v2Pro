@@ -9,7 +9,7 @@ abstract class CustomerRequest extends FormRequest
     protected function customerRules()
     {
         return [
-            'email' => 'required|email:strict|max:64',
+            'email' => ['bail', 'required', 'string', 'max:64', new \App\Rules\AccountEmail()],
             'staff_plan_id' => 'sometimes|nullable|integer|min:1',
             'remarks' => 'nullable|string|max:2000',
             // Bytes must be whole, nonnegative and exactly representable in JavaScript.

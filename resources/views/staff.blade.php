@@ -106,7 +106,7 @@
             <div class="staff-editor-body">
             <p id="customer-error" class="form-error" role="alert" hidden></p>
             <input name="id" type="hidden">
-            <label>Email<input class="ant-input" name="email" type="email" maxlength="64" required></label>
+            <label>Email<input class="ant-input" name="email" type="text" inputmode="email" maxlength="64" required></label>
             <label>Mật khẩu<input class="ant-input" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password"><small id="password-hint">Tối thiểu 8 ký tự.</small></label>
             <div class="staff-editor-row">
                 <label>Đã dùng tải lên (GB)<input class="ant-input" name="u" type="number" min="0" step="any" required></label>

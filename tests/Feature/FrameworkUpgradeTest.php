@@ -59,7 +59,7 @@ class FrameworkUpgradeTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_login_accepts_legacy_identifiers_without_relaxing_registration(): void
+    public function test_login_accepts_legacy_identifiers(): void
     {
         $translator = new \Illuminate\Translation\Translator(new \Illuminate\Translation\ArrayLoader(), 'en');
         $factory = new \Illuminate\Validation\Factory($translator, $this->app);
@@ -71,13 +71,28 @@ class FrameworkUpgradeTest extends TestCase
             $this->assertTrue($factory->make(['email' => $email, 'password' => 'isolated-password'], $rules)->fails());
         }
         $this->assertTrue($factory->make(['email' => 'admin@test', 'password' => 'short'], $rules)->fails());
-        $registration = (new \App\Http\Requests\Passport\AuthRegister())->rules();
-        foreach (['admin@test', '1234@1', 'legacy-user'] as $email) {
-            $this->assertTrue($factory->make(['email' => $email], ['email' => $registration['email']])->fails());
-        }
-        foreach ([\App\Http\Requests\Passport\AuthForget::class, \App\Http\Requests\Passport\CommSendEmailVerify::class] as $request) {
+    }
+
+    public function test_account_address_validation_does_not_require_a_dotted_domain(): void
+    {
+        $translator = new \Illuminate\Translation\Translator(new \Illuminate\Translation\ArrayLoader(), 'en');
+        $this->app->instance('translator', $translator);
+        $factory = new \Illuminate\Validation\Factory($translator, $this->app);
+        foreach ([
+            \App\Http\Requests\Passport\AuthRegister::class,
+            \App\Http\Requests\Passport\AuthForget::class,
+            \App\Http\Requests\Passport\CommSendEmailVerify::class,
+            \App\Http\Requests\Admin\UserUpdate::class,
+            \App\Http\Requests\Staff\UserCreate::class,
+            \App\Http\Requests\Staff\UserUpdate::class,
+        ] as $request) {
             $emailRules = (new $request())->rules()['email'];
-            $this->assertTrue($factory->make(['email' => '1234@1'], ['email' => $emailRules])->fails());
+            foreach (['1234@1', 'user@abc', 'admin@test', 'normal@example.com', 'user+tag@example.com', str_repeat('a', 62) . '@1'] as $email) {
+                $this->assertTrue($factory->make(['email' => $email], ['email' => $emailRules])->passes(), $request . ': ' . $email);
+            }
+            foreach (['', 'missing-at', '@1', 'user@', 'user@@1', 'user name@1', "user@1\n", "user\0@1", str_repeat('a', 63) . '@1', null, ['user@1'], 1234] as $email) {
+                $this->assertTrue($factory->make(['email' => $email], ['email' => $emailRules])->fails(), $request);
+            }
         }
     }
 

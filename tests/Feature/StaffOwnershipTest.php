@@ -131,6 +131,8 @@ class StaffOwnershipTest extends TestCase
         $router->group(['prefix' => 'api/v1', 'namespace' => 'App\\Http\\Controllers'], function ($router) {
             (new StaffRoute())->map($router);
             $router->post('/staff-test-login', 'V1\\Passport\\AuthController@login');
+            $router->post('/staff-test-register', 'V1\\Passport\\AuthController@register');
+            $router->post('/staff-test-forget', 'V1\\Passport\\AuthController@forget');
             $router->post('/staff-test-admin/user/update', 'V1\\Admin\\UserController@update')->middleware('admin');
             $router->post('/staff-test-admin/user/delUser', 'V1\\Admin\\UserController@delUser')->middleware('admin');
             $router->post('/staff-test-admin/user/allDel', 'V1\\Admin\\UserController@allDel')->middleware('admin');
@@ -197,6 +199,58 @@ class StaffOwnershipTest extends TestCase
         [$status, $body] = $this->api('/api/v1/staff-test-login', ['email' => 'missing@1', 'password' => 'correct-password'], 'POST');
         $this->assertSame(500, $status);
         $this->assertArrayNotHasKey('data', $body);
+    }
+
+    public function test_registration_and_password_reset_accept_numeric_domains_and_keep_verification(): void
+    {
+        $payload = ['email' => '1234@1', 'password' => 'correct-password'];
+        [$status, $body] = $this->api('/api/v1/staff-test-register', $payload, 'POST');
+        $this->assertSame(200, $status);
+        $user = User::where('email', '1234@1')->firstOrFail();
+        $this->assertTrue(password_verify('correct-password', $user->password));
+        $this->assertSame(0, (int) $user->is_admin);
+        $this->assertSame(0, (int) $user->is_staff);
+        $oldToken = $body['data']['auth_data'];
+        $this->assertSame(500, $this->api('/api/v1/staff-test-register', $payload, 'POST')[0]);
+        $this->assertSame(1, User::where('email', '1234@1')->count());
+
+        config(['v2board.email_whitelist_enable' => 1, 'v2board.email_whitelist_suffix' => ['example.com']]);
+        $this->assertSame(500, $this->api('/api/v1/staff-test-register', ['email' => 'blocked@1', 'password' => 'correct-password'], 'POST')[0]);
+        $this->assertFalse(User::where('email', 'blocked@1')->exists());
+        config(['v2board.email_whitelist_enable' => 0, 'v2board.email_verify' => 1]);
+        $verifiedPayload = ['email' => 'verified@abc', 'password' => 'correct-password'];
+        $this->assertSame(500, $this->api('/api/v1/staff-test-register', $verifiedPayload, 'POST')[0]);
+        Cache::put(\App\Utils\CacheKey::get('EMAIL_VERIFY_CODE', 'verified@abc'), '123456');
+        $this->assertSame(500, $this->api('/api/v1/staff-test-register', $verifiedPayload + ['email_code' => '999999'], 'POST')[0]);
+        $this->assertSame(200, $this->api('/api/v1/staff-test-register', $verifiedPayload + ['email_code' => '123456'], 'POST')[0]);
+
+        Cache::put(\App\Utils\CacheKey::get('EMAIL_VERIFY_CODE', '1234@1'), '123456');
+        $reset = ['email' => '1234@1', 'password' => 'replacement-password'];
+        $this->assertSame(500, $this->api('/api/v1/staff-test-forget', $reset + ['email_code' => '999999'], 'POST')[0]);
+        $this->assertTrue(password_verify('correct-password', $user->fresh()->password));
+        $this->assertSame(200, $this->api('/api/v1/staff-test-forget', $reset + ['email_code' => '123456'], 'POST')[0]);
+        $this->assertTrue(password_verify('replacement-password', $user->fresh()->password));
+        $this->assertFalse(AuthService::decryptAuthData($oldToken));
+        $this->assertSame(200, $this->api('/api/v1/staff-test-login', $reset, 'POST')[0]);
+    }
+
+    public function test_staff_and_admin_edit_numeric_domain_accounts_without_changing_ownership(): void
+    {
+        [$status, $body] = $this->api('user/create', ['email' => '5678@1', 'password' => 'correct-password'], 'POST');
+        $this->assertSame(200, $status);
+        $created = User::findOrFail($body['data']['id']);
+        $this->assertSame(200, $this->api('user/update', ['id' => $created->id, 'email' => '1234@1', 'banned' => 0], 'POST')[0]);
+        $this->assertSame('1234@1', $created->fresh()->email);
+        $this->assertSame(200, $this->api('/api/v1/staff-test-login', ['email' => '1234@1', 'password' => 'correct-password'], 'POST')[0]);
+        $this->assertSame(404, $this->api('user/update', ['id' => $this->other->id, 'email' => 'other@1', 'banned' => 0], 'POST')[0]);
+        $token = (new AuthService($this->admin))->generateAuthData(Request::create('/'))['auth_data'];
+        $this->assertSame(200, $this->api('/api/v1/staff-test-admin/user/update', [
+            'id' => $created->id, 'email' => 'customer@local', 'banned' => 0, 'is_admin' => 0, 'is_staff' => 0
+        ], 'POST', $token)[0]);
+        $this->assertSame('customer@local', $created->fresh()->email);
+        $this->assertSame($this->a->id, $created->fresh()->staff_owner_id);
+        $this->assertSame($this->a->id, $created->fresh()->staff_creator_id);
+        $this->assertSame(0, (int) $created->fresh()->is_admin);
     }
 
     public function test_default_login_password_limit_counts_failures_and_blocks_after_five(): void

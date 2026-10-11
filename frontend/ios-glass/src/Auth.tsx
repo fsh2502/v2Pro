@@ -255,8 +255,9 @@ export default function Auth({
                                 <Mail size={18} />
                                 <input
                                     required
-                                    type={mode === "login" ? "text" : "email"}
+                                    type="text"
                                     inputMode="email"
+                                    maxLength={mode === "login" ? 255 : 64}
                                     autoComplete="username"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}

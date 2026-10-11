@@ -104,7 +104,9 @@ class V2boardInstall extends Command
             }
             $this->info('Nhập cơ sở dữ liệu đã hoàn tất');
             $email = '';
-            while (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            while (validator(['email' => $email], [
+                'email' => ['bail', 'required', 'string', 'max:64', new \App\Rules\AccountEmail()]
+            ])->fails()) {
                 $email = $this->ask('Vui lòng nhập địa chỉ email của người quản trị?');
             }
             $password = Helper::guid(false);

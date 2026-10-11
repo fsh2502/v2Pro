@@ -14,7 +14,7 @@ class CommSendEmailVerify extends FormRequest
     public function rules()
     {
         return [
-            'email' => 'required|email:strict'
+            'email' => ['bail', 'required', 'string', 'max:64', new \App\Rules\AccountEmail()]
         ];
     }
 
