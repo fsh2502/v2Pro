@@ -1,3 +1,4 @@
-# Install for the PHP-FPM user (www on aaPanel). Replace PHP and release paths.
+# Use in crontab -u www -e, not in an aaPanel Shell Script task.
+# Replace PHP and release paths. For aaPanel use aapanel-cron.sh.example instead.
 * * * * * cd /www/wwwroot/v2pro-max && /www/server/php/83/bin/php artisan schedule:run >> /www/wwwroot/v2pro-max/storage/logs/scheduler.log 2>&1
 

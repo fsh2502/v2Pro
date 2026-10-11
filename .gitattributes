@@ -3,6 +3,7 @@
 *.scss linguist-vendored
 *.js linguist-vendored
 *.sh text eol=lf
+*.sh.example text eol=lf
 /.github export-ignore
 /tests export-ignore
 /frontend export-ignore

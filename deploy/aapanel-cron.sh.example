@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Paste into aaPanel Cron -> Shell Script; select an every-minute schedule in the UI.
+# Do not prepend the five crontab schedule fields to shell commands.
+set -eu
+cd /www/wwwroot/v2pro-max
+/www/server/php/83/bin/php artisan schedule:run >> /www/wwwroot/v2pro-max/storage/logs/scheduler.log 2>&1

@@ -1,4 +1,5 @@
 [program:v2pro-max]
+process_name=%(program_name)s_%(process_num)02d
 directory=/www/wwwroot/v2pro-max
 command=/www/server/php/83/bin/php artisan horizon
 user=www
