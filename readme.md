@@ -1,12 +1,11 @@
 # V2Board
 
-V2Board là hệ thống quản lý dịch vụ proxy đa giao thức, được xây dựng trên nền tảng Laravel 8. Hỗ trợ quản lý gói đăng ký, quản lý node server đa giao thức và bảng điều khiển quản trị toàn diện.
+V2Board là hệ thống quản lý dịch vụ proxy đa giao thức. Nhánh này nâng nền tảng lên Laravel 12 và PHP 8.3.30+, hỗ trợ quản lý gói đăng ký, node server, CTV và bảng điều khiển quản trị. Xem [hướng dẫn nâng cấp an toàn](docs/laravel12-upgrade-2026-10-11.md) trước khi chuyển từ website Laravel 8 hiện có.
 
 ## Yêu cầu hệ thống
 
-- PHP >= 7.3
-- Composer
-- MySQL >= 5.5
+- PHP >= 8.3.30 và Composer 2; cài dependency từ `composer.lock`
+- MySQL >= 5.7 hoặc MariaDB >= 10.3
 - Redis
 
 ## Tính năng
@@ -65,9 +64,11 @@ Clash, ClashMeta, ClashNyanpasu, ClashVerge, Loon, Passwall, QuantumultX, SagerN
 
 ## Cài đặt
 
+Đây là luồng cài mới trên database trống. Nếu website đã có dữ liệu, dùng [hướng dẫn nâng cấp](docs/laravel12-upgrade-2026-10-11.md) và bản sao database để kiểm thử trước.
+
 ```bash
-git clone https://github.com/fsh2502/v2Pro.git
-cd v2board
+git clone --branch codex/laravel12-security --single-branch https://github.com/fsh2502/v2Pro.git
+cd v2Pro
 chmod +x init.sh
 ./init.sh
 ```
@@ -75,11 +76,17 @@ chmod +x init.sh
 Hoặc cài đặt thủ công:
 
 ```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-# Chỉnh sửa file .env để cấu hình database và Redis
+composer validate --strict --no-check-publish
+composer audit --locked --no-dev
+composer install --no-dev --prefer-dist --optimize-autoloader --no-scripts
+composer check-platform-reqs --no-dev
+# Chỉnh sửa .env.example cho domain/Redis của site mới.
+# Không tạo .env trước: installer tự tạo file này và hỏi thông tin database.
 php artisan v2board:install
+php artisan migrate --force
+php artisan package:discover --ansi
+php artisan config:cache
+php artisan view:cache
 ```
 
 ## Cấu hình
@@ -109,6 +116,8 @@ Truy cập bảng điều khiển Horizon tại `/monitor`.
 
 ## Cập nhật
 
+Chuyển từ Laravel 8 phải dùng [release riêng và database staging](docs/laravel12-upgrade-2026-10-11.md), không chạy script cập nhật trực tiếp trên website chính. Script bên dưới dành cho checkout đã chuyển sang Laravel 12 và đã sao lưu/kiểm thử bản phát hành.
+
 ```bash
 ./update.sh
 ```
@@ -131,7 +140,7 @@ Truy cập bảng điều khiển Horizon tại `/monitor`.
 
 ## Công nghệ sử dụng
 
-- **Backend:** Laravel 8 + PHP
+- **Backend:** Laravel 12 + PHP 8.3.30+
 - **Hàng đợi:** Redis + Laravel Horizon
 - **Cơ sở dữ liệu:** MySQL
 - **Cache/Session:** Redis

@@ -22,7 +22,7 @@ $scratch = $root . '/artifacts/ios-glass-20261010/php-smoke';
 if (!is_dir($scratch)) mkdir($scratch, 0777, true);
 $app = new Application($scratch);
 $app->instance('request', Illuminate\Http\Request::create('http://localhost/'));
-$app->instance('path.public', $root . '/public');
+$app->usePublicPath($root . '/public');
 $app->instance('config', new Repository([
     'app' => ['url' => 'http://localhost'],
     'view' => ['paths' => [$root . '/resources/views'], 'compiled' => $scratch],

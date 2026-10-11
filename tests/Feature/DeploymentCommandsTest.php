@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Console\Commands\V2boardInstall;
 use App\Console\Commands\V2boardUpdate;
 use Illuminate\Console\OutputStyle;
-use Illuminate\Database\Query\Expression;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -36,13 +35,13 @@ class DeploymentCommandsTest extends TestCase
             if (!class_exists($alias, false)) class_alias($class, $alias);
         }
         $this->schema = Mockery::mock();
+        $this->app->instance('db.schema', $this->schema);
         DB::shouldReceive('connection')->andReturn(new class($this->schema) {
             private $schema;
             public function __construct($schema) { $this->schema = $schema; }
             public function getPdo() {}
             public function getSchemaBuilder() { return $this->schema; }
         });
-        DB::shouldReceive('raw')->andReturnUsing(function ($sql) { return new Expression($sql); });
         $this->output = new BufferedOutput();
     }
 
@@ -66,7 +65,7 @@ class DeploymentCommandsTest extends TestCase
         Artisan::shouldReceive('call')->once()->with('horizon:terminate')->andReturn(0);
         File::shouldReceive('get')->once()->andReturn(file_get_contents(dirname(__DIR__, 2) . '/database/update.sql'));
         $statements = [];
-        DB::shouldReceive('select')->andReturnUsing(function ($sql) use (&$statements) { $statements[] = trim((string) $sql); return []; });
+        DB::shouldReceive('statement')->andReturnUsing(function ($sql) use (&$statements) { $statements[] = trim($sql); return true; });
         $this->schema->shouldReceive('hasColumn')->andReturn(true);
         $this->assertNull($this->command(new V2boardUpdate())->handle());
         $this->assertContains('ALTER TABLE `v2_user` ADD `staff_app_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL', $statements);
@@ -80,7 +79,7 @@ class DeploymentCommandsTest extends TestCase
         Artisan::shouldReceive('call')->once()->with('config:cache')->andReturn(0);
         Artisan::shouldReceive('call')->never()->with('horizon:terminate');
         File::shouldReceive('get')->once()->andReturn('-- journal' . "\n" . 'CREATE TABLE `v2_staff_activity_log` (id int);');
-        DB::shouldReceive('select')->once()->andThrow(new \RuntimeException('Database write rejected'));
+        DB::shouldReceive('statement')->once()->andThrow(new \RuntimeException('Database write rejected'));
         $this->schema->shouldReceive('hasColumn')->andReturnUsing(function ($table) { return $table !== 'v2_staff_activity_log'; });
         $this->assertSame(1, $this->command(new V2boardUpdate())->handle());
         $output = $this->output->fetch();

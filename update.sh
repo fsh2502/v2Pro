@@ -19,6 +19,12 @@ if [[ ! -f composer.lock ]]; then
     echo "Missing composer.lock. Generate, audit and commit a tested lock file before deployment."
     exit 1
 fi
+if [[ -f vendor/autoload.php ]]; then
+    php -r 'require "vendor/autoload.php"; $v = Composer\InstalledVersions::getVersion("laravel/framework"); exit((int) $v === 12 ? 0 : 1);' || {
+        echo "Framework upgrade detected. Use a separate release and docs/laravel12-upgrade-2026-10-11.md."
+        exit 1
+    }
+fi
 if command -v composer >/dev/null; then
     composer_cmd=(composer)
 elif [[ -f composer.phar ]]; then

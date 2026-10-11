@@ -1,5 +1,7 @@
 # Bản test CTV / Staff
 
+**Nhánh nâng framework `codex/laravel12-security`:** đã bổ sung `composer.lock` Laravel 12 và sửa tương thích PHP 8.3.30+. Hướng dẫn dưới đây mô tả nhánh CTV ban đầu; với nhánh nâng framework, dùng [hướng dẫn Laravel 12](docs/laravel12-upgrade-2026-10-11.md). Chưa chuyển website chính sang bản này.
+
 Nhánh: `test/ctv-20261008`. Dùng để kiểm thử trên website riêng trong aaPanel/BaoTa.
 Đây là mã Laravel thật; trang `admin-demo` trong công cụ preview chỉ là mock và không phải đường dẫn của website triển khai.
 

@@ -54,7 +54,7 @@ class V2boardUpdate extends Command
         foreach ($sql as $item) {
             if (!trim($item)) continue;
             try {
-                DB::select(DB::raw($item));
+                DB::statement($item);
             } catch (\Exception $e) {
                 // Legacy SQL is replayed on every upgrade and can contain already
                 // applied/removed objects. Keep that compatibility, but expose failures.

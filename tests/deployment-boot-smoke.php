@@ -22,6 +22,8 @@ $manifest->vendorPath = dirname($autoload);
 $manifest->build();
 $app->instance(\Illuminate\Foundation\PackageManifest::class, $manifest);
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+// Production keeps its database logger; this isolated check never uses it.
+config(['logging.default' => 'errorlog']);
 $errors = [];
 $count = 0; $applicationRoutes = 0;
 foreach ($app['router']->getRoutes() as $route) {
@@ -54,7 +56,13 @@ foreach (['staff', 'admin'] as $view) {
     }
 }
 $schema = $app['db']->connection()->getSchemaBuilder();
-$schema->create('v2_user', function ($table) { $table->increments('id'); $table->string('email'); });
+$schema->create('v2_user', function ($table) {
+    $table->increments('id'); $table->string('email');
+    $table->string('password')->nullable(); $table->string('password_algo')->nullable();
+    $table->string('password_salt')->nullable(); $table->string('token')->nullable();
+    $table->integer('is_admin')->default(0); $table->integer('is_staff')->default(0);
+    $table->integer('banned')->default(0);
+});
 $schema->create('v2_notice', function ($table) { $table->increments('id'); });
 $app['db']->table('v2_user')->insert(['id' => 7, 'email' => 'legacy@example.com']);
 $migrations = [
@@ -117,8 +125,53 @@ $environments = $app['config']->get('horizon.environments');
 if (empty($environments['*']['V2board']['queue']) || $environments['*']['V2board']['maxProcesses'] < 1) {
     $errors[] = 'Horizon has no valid worker configuration for production.';
 }
+
+// Execute the actual HTTP kernel (including global middleware and FormRequest validation).
+$kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
+$adminPath = config('v2board.secure_path', config('v2board.frontend_admin_path', hash('crc32b', config('app.key'))));
+$http = function ($path, $method = 'GET', array $data = [], $token = null) use ($kernel) {
+    $request = \Illuminate\Http\Request::create('http://localhost' . $path, $method, $data);
+    $request->headers->set('Accept', 'application/json');
+    if ($token !== null) $request->headers->set('Authorization', $token);
+    return $kernel->handle($request);
+};
+foreach ([
+    ['/api/v1/guest/comm/config', 'GET', 200],
+    ['/api/v1/passport/auth/login', 'POST', 422],
+    ['/api/v1/' . $adminPath . '/config/fetch', 'GET', 403],
+    ['/staff', 'GET', 200],
+    ['/' . $adminPath, 'GET', 200],
+    ['/api/v1/nonexistent-framework-regression', 'GET', 404],
+] as [$path, $method, $status]) {
+    $response = $http($path, $method);
+    if ($response->getStatusCode() !== $status) $errors[] = $path . ': HTTP kernel returned ' . $response->getStatusCode() . ', expected ' . $status;
+}
+$app['db']->table('v2_user')->where('id', 7)->update([
+    'password' => password_hash('isolated-regression-password', PASSWORD_BCRYPT), 'is_admin' => 1,
+]);
+$response = $http('/api/v1/passport/auth/login', 'POST', ['email' => 'legacy@example.com', 'password' => 'isolated-regression-password']);
+$authData = json_decode($response->getContent(), true)['data']['auth_data'] ?? null;
+if ($response->getStatusCode() !== 200 || !$authData) {
+    $errors[] = 'Login failed through the complete HTTP kernel.';
+} else {
+    // The Horizon dashboard API must accept both cold and cached JWT sessions.
+    for ($attempt = 0; $attempt < 2; $attempt++) {
+        // Stats requires Redis, which is intentionally unavailable in this check.
+        // Authorize the registered middleware directly instead of invoking that controller.
+        $horizonRequest = \Illuminate\Http\Request::create('/horizon/api/stats');
+        $horizonRequest->headers->set('Authorization', $authData);
+        $horizonMiddleware = new \Laravel\Horizon\Http\Middleware\Authenticate();
+        $authorized = $horizonMiddleware->handle($horizonRequest, fn () => true);
+        if ($authorized !== true) $errors[] = 'Horizon rejected the valid Admin session.';
+    }
+    $app['db']->table('v2_user')->where('id', 7)->update(['banned' => 1]);
+    if ($http('/api/v1/' . $adminPath . '/config/fetch', 'GET', [], $authData)->getStatusCode() !== 403) {
+        $errors[] = 'HTTP middleware retained a banned Admin session.';
+    }
+}
 echo 'Real application boot with package discovery: ' . $count . ' routes (' . $applicationRoutes . ' application routes); Staff/Admin views rendered; ' . count($errors) . " errors\n";
 echo "Six migrations replayed on SQLite; legacy identity preserved; knowledge visibility/404 and production worker configuration checked.\n";
 echo "Full Artisan migrate replayed twice without an initial ledger; all seven migrations recorded and legacy failed job preserved.\n";
+echo "HTTP kernel: guest configuration, validation, denied Admin, panels, missing route, login and role revocation checked; Horizon cold/warm JWT authentication checked.\n";
 foreach ($errors as $error) echo $error . "\n";
 exit($errors ? 1 : 0);

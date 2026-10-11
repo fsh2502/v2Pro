@@ -1146,12 +1146,12 @@ class StaffOwnershipTest extends TestCase
         \Laravel\Horizon\Horizon::auth(function () { return false; });
     }
 
-    public function horizonEnvironmentCases(): array
+    public static function horizonEnvironmentCases(): array
     {
         return [['production'], ['local'], ['staging']];
     }
 
-    /** @dataProvider horizonEnvironmentCases */
+    #[\PHPUnit\Framework\Attributes\DataProvider('horizonEnvironmentCases')]
     public function test_horizon_middleware_handles_cold_and_warm_panel_sessions_in_each_environment(string $environment): void
     {
         $this->app->instance('env', $environment);
