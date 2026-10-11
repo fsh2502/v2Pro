@@ -2,4 +2,9 @@
 *.css linguist-vendored
 *.scss linguist-vendored
 *.js linguist-vendored
-CHANGELOG.md export-ignore
+*.sh text eol=lf
+/.github export-ignore
+/tests export-ignore
+/frontend export-ignore
+/phpunit.xml export-ignore
+/phpunit.isolated.xml export-ignore

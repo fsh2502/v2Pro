@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Encryption\Encrypter;
 use App\Models\User;
 use App\Utils\Helper;
+use App\Services\EnvironmentFileService;
 use Illuminate\Support\Facades\DB;
 
 class V2boardInstall extends Command
@@ -22,7 +23,7 @@ class V2boardInstall extends Command
      *
      * @var string
      */
-    protected $description = 'v2board 安装';
+    protected $description = 'Cài mới v2Pro Pro trên database trống';
 
     /**
      * Create a new command instance.
@@ -50,18 +51,24 @@ class V2boardInstall extends Command
             if (\File::exists(base_path() . '/.env')) {
                 $securePath = config('v2board.secure_path', config('v2board.frontend_admin_path', hash('crc32b', config('app.key'))));
                 $this->info("Truy cập http(s)://domain_của_bạn/{$securePath} Vào bảng quản trị, bạn có thể thay đổi mật khẩu trong trung tâm người dùng.");
-                abort(500, 'Nếu bạn cần cài đặt lại, vui lòng xóa tệp .env trong thư mục');
+                abort(500, 'Đã có .env. Dùng lệnh nâng cấp; không chạy installer trên website có dữ liệu.');
             }
 
-            if (!copy(base_path() . '/.env.example', base_path() . '/.env')) {
+            $previousMask = umask(0077);
+            try {
+                $copied = copy(base_path() . '/.env.example', base_path() . '/.env');
+            } finally {
+                umask($previousMask);
+            }
+            if (!$copied) {
                 abort(500, 'Không thể sao chép tệp môi trường, vui lòng kiểm tra quyền thư mục');
             }
             $this->saveToEnv([
                 'APP_KEY' => 'base64:' . base64_encode(Encrypter::generateKey('AES-256-CBC')),
                 'DB_HOST' => $this->ask('Vui lòng nhập địa chỉ cơ sở dữ liệu (mặc định: localhost)', 'localhost'),
                 'DB_DATABASE' => $this->ask('Tên cơ sở dữ liệu'),
-                'DB_USERNAME' => $this->ask('User cơ sử dữ liệu'),
-                'DB_PASSWORD' => $this->ask('Pass cơ sở dữ liệu')
+                'DB_USERNAME' => $this->ask('Tên tài khoản database'),
+                'DB_PASSWORD' => $this->secret('Mật khẩu database') ?? ''
             ]);
             \Artisan::call('config:clear');
             \Artisan::call('config:cache');
@@ -71,6 +78,12 @@ class V2boardInstall extends Command
                 abort(500, 'Kết nối cơ sở dữ liệu không thành công');
             }
             $file = \File::get(base_path() . '/database/install.sql');
+            if (!in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+                throw new \RuntimeException('Cài mới cần MySQL/MariaDB.');
+            }
+            if (DB::connection()->getSchemaBuilder()->getTableListing() !== []) {
+                throw new \RuntimeException('Database đã có bảng. Dừng cài mới để bảo vệ dữ liệu; dùng v2board:db-upgrade cho database v2Pro cũ.');
+            }
             if (!$file) {
                 abort(500, 'Tệp cơ sở dữ liệu không tồn tại');
             }
@@ -91,7 +104,7 @@ class V2boardInstall extends Command
             }
             $this->info('Nhập cơ sở dữ liệu đã hoàn tất');
             $email = '';
-            while (!$email) {
+            while (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $email = $this->ask('Vui lòng nhập địa chỉ email của người quản trị?');
             }
             $password = Helper::guid(false);
@@ -127,33 +140,7 @@ class V2boardInstall extends Command
 
     private function saveToEnv($data = [])
     {
-        function set_env_var($key, $value)
-        {
-            if (! is_bool(strpos($value, ' '))) {
-                $value = '"' . $value . '"';
-            }
-            $key = strtoupper($key);
-
-            $envPath = app()->environmentFilePath();
-            $contents = file_get_contents($envPath);
-
-            preg_match("/^{$key}=[^\r\n]*/m", $contents, $matches);
-
-            $oldValue = count($matches) ? $matches[0] : '';
-
-            if ($oldValue) {
-                $contents = str_replace("{$oldValue}", "{$key}={$value}", $contents);
-            } else {
-                $contents = $contents . "\n{$key}={$value}\n";
-            }
-
-            $file = fopen($envPath, 'w');
-            fwrite($file, $contents);
-            return fclose($file);
-        }
-        foreach($data as $key => $value) {
-            set_env_var($key, $value);
-        }
+        (new EnvironmentFileService())->update(app()->environmentFilePath(), $data);
         return true;
     }
 }

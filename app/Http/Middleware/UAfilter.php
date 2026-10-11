@@ -17,9 +17,8 @@ class UAfilter
     public function handle(Request $request, Closure $next)
     {
         if (defined('isWEBMAN') && isWEBMAN) {
-            if(str_contains((string) $request->header('Content-Type'), 'application/json')) {
-                $phpInput = json_encode($_POST);
-                $decodedData = json_decode($phpInput, true);
+            if (str_contains((string) $request->header('Content-Type'), 'application/json')) {
+                $decodedData = json_decode(json_encode($_POST), true);
                 if (json_last_error() === JSON_ERROR_NONE) {
                     $request->merge($decodedData);
                 }
@@ -29,11 +28,11 @@ class UAfilter
         if (strpos($userAgent, 'MicroMessenger') !== false || strpos($userAgent, 'QQ/') !== false) {
             $html = <<<HTML
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unsupported Browser</title>
+    <title>Trình duyệt chưa được hỗ trợ</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
         h1 { color: #333; }
@@ -41,9 +40,9 @@ class UAfilter
     </style>
 </head>
 <body>
-    <h1>浏览器不支持</h1>
-    <p>很抱歉，我们的页面在QQ和微信浏览器中无法正常访问。</p>
-    <p>请点击右上方，选择在浏览器中打开。</p>
+    <h1>Trình duyệt chưa được hỗ trợ</h1>
+    <p>Vui lòng mở trang này bằng Safari, Chrome hoặc trình duyệt mặc định của thiết bị.</p>
+    <p>Nhấn menu ở góc trên bên phải rồi chọn mở bằng trình duyệt.</p>
 </body>
 </html>
 HTML;

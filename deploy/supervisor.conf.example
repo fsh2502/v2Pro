@@ -1,0 +1,16 @@
+[program:v2pro-pro]
+directory=/www/wwwroot/v2pro-pro
+command=/www/server/php/83/bin/php artisan horizon
+user=www
+numprocs=1
+autostart=true
+autorestart=true
+stopsignal=TERM
+stopwaitsecs=3600
+stopasgroup=true
+killasgroup=true
+redirect_stderr=true
+stdout_logfile=/www/wwwroot/v2pro-pro/storage/logs/horizon.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
+

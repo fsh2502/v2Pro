@@ -206,7 +206,7 @@ class ConfigController extends Controller
             }
         }
         Artisan::call('config:cache');
-        if(Cache::has('WEBMANPID')) {
+        if (Cache::has('WEBMANPID')) {
             $pid = Cache::get('WEBMANPID');
             Cache::forget('WEBMANPID');
             return response([

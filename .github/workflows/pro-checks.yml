@@ -1,0 +1,67 @@
+name: Pro checks
+on:
+  push:
+    branches: [Pro]
+  pull_request:
+    branches: [Pro]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pro-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+          MYSQL_DATABASE: v2pro_ci_upgrade
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-only-password"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@d52fc211a0436f8839a587b3b5b8efddab4744ea # v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, sodium, pdo_mysql, pdo_sqlite, redis, pcntl, posix
+          coverage: none
+          tools: composer:v2
+      - run: composer validate --strict --no-check-publish
+      - run: composer install --no-interaction --prefer-dist --no-plugins --no-scripts
+      - run: composer audit --locked --no-dev
+      - run: php vendor/bin/phpunit
+      - run: php tests/deployment-boot-smoke.php
+      - run: php tests/certificate-smoke.php
+      - run: php tests/ios-glass-theme-smoke.php
+      - run: bash -n init.sh update.sh
+      - run: php tests/mysql-upgrade-smoke.php
+        env:
+          V2PRO_CI_DATABASE: v2pro_ci_upgrade
+          V2PRO_CI_USERNAME: root
+          V2PRO_CI_PASSWORD: ci-only-password
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - run: |
+          node tests/admin-session-smoke.js
+          node tests/staff-ui-smoke.js
+          node tests/ctv-admin-ui-smoke.js
+          node tests/staff-plan-admin-ui-smoke.js
+          node tests/qr-smoke.js
+      - run: npm ci && npm audit --omit=dev && npm test && npm run build
+        working-directory: frontend/ios-glass

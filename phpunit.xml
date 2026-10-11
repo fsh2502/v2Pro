@@ -5,6 +5,8 @@
             <file>tests/Feature/StaffOwnershipTest.php</file>
             <file>tests/Feature/IosGlassSubscriptionTest.php</file>
             <file>tests/Feature/DeploymentCommandsTest.php</file>
+            <file>tests/Feature/DatabaseUpgradeTest.php</file>
+            <file>tests/Feature/ProReleaseTest.php</file>
             <file>tests/Feature/FrameworkUpgradeTest.php</file>
             <file>tests/Feature/TrafficUpdateTest.php</file>
             <file>tests/Unit/OnlineUserServiceTest.php</file>

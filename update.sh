@@ -2,59 +2,46 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-if [[ ! -d .git ]]; then
-    echo "Please deploy using a Git checkout."
-    exit 1
-fi
-for tool in git php; do
-    command -v "$tool" >/dev/null || { echo "Missing required tool: $tool"; exit 1; }
-done
+# Prepare an already-downloaded release. Never pull or resolve new dependencies here.
+php_bin="${PHP_BIN:-php}"
+command -v "$php_bin" >/dev/null || { echo "Không tìm thấy PHP CLI."; exit 1; }
+[[ -f .env && -f composer.lock ]] || { echo "Thiếu .env hoặc composer.lock. Đọc readme.md."; exit 1; }
+[[ "${BACKUP_CONFIRMED:-}" == yes ]] || { echo "Sao lưu database/mã nguồn rồi đặt BACKUP_CONFIRMED=yes."; exit 1; }
+"$php_bin" -r 'exit(version_compare(PHP_VERSION, "8.3.30", ">=") ? 0 : 1);' || { echo "Cần PHP 8.3.30 trở lên."; exit 1; }
 
-# Preserve local work. Release dependencies must be resolved and tested beforehand.
-if [[ -n "$(git status --porcelain)" ]]; then
-    echo "Local changes exist. Save them in a reviewed release before updating."
+if [[ -n "${COMPOSER_PATH:-}" && -f "$COMPOSER_PATH" ]]; then
+    composer_cmd=("$php_bin" "$COMPOSER_PATH")
+elif command -v composer >/dev/null; then
+    composer_cmd=("$php_bin" "$(command -v composer)")
+elif [[ -f composer.phar ]]; then
+    composer_cmd=("$php_bin" composer.phar)
+else
+    echo "Cài Composer 2 hoặc đặt COMPOSER_PATH tới composer.phar."
     exit 1
 fi
-if [[ ! -f composer.lock ]]; then
-    echo "Missing composer.lock. Generate, audit and commit a tested lock file before deployment."
-    exit 1
-fi
+
+"${composer_cmd[@]}" --no-plugins --no-interaction validate --strict --no-check-publish
+"${composer_cmd[@]}" --no-plugins --no-interaction audit --locked --no-dev
 if [[ -f vendor/autoload.php ]]; then
-    php -r 'require "vendor/autoload.php"; $v = Composer\InstalledVersions::getVersion("laravel/framework"); exit((int) $v === 12 ? 0 : 1);' || {
-        echo "Framework upgrade detected. Use a separate release and docs/laravel12-upgrade-2026-10-11.md."
+    "$php_bin" -r 'require "vendor/autoload.php"; $v = Composer\InstalledVersions::getVersion("laravel/framework"); exit((int) $v === 12 ? 0 : 1);' || {
+        echo "Vendor framework cũ: dùng thư mục release mới, không cập nhật tại chỗ."
         exit 1
     }
-fi
-if command -v composer >/dev/null; then
-    composer_cmd=(composer)
-elif [[ -f composer.phar ]]; then
-    composer_cmd=(php composer.phar)
-else
-    echo "Install Composer before running this script."
-    exit 1
+    if "$php_bin" artisan horizon:status >/dev/null 2>&1; then
+        echo "Horizon còn chạy. Dừng Supervisor/Horizon và cron của site trước khi cập nhật."
+        exit 1
+    fi
 fi
 
-branch="$(git symbolic-ref --quiet --short HEAD)" || { echo "Detached HEAD; choose a release branch first."; exit 1; }
-git pull --ff-only origin "$branch"
-[[ -f composer.lock ]] || { echo "The fetched release has no composer.lock."; exit 1; }
-"${composer_cmd[@]}" validate --no-check-publish
-"${composer_cmd[@]}" install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-"${composer_cmd[@]}" check-platform-reqs --no-dev
-"${composer_cmd[@]}" audit --no-dev
+"${composer_cmd[@]}" --no-plugins --no-interaction install --no-dev --prefer-dist --optimize-autoloader --no-scripts
+"${composer_cmd[@]}" --no-plugins --no-interaction check-platform-reqs --no-dev
+"$php_bin" artisan down --retry=60
+trap 'echo "Cập nhật chưa hoàn tất. Giữ bảo trì, xử lý lỗi trước khi mở website." >&2' ERR
+"$php_bin" artisan v2board:db-upgrade --force
+"$php_bin" artisan package:discover --ansi
+"$php_bin" artisan config:cache
+"$php_bin" artisan view:cache
+trap - ERR
 
-php artisan v2board:update
-php artisan migrate --force
-php artisan optimize:clear
-php artisan config:cache
-php artisan view:cache
-php artisan horizon:terminate
-
-# Adapterman is optional and must already be part of the tested release dependency set.
-if [[ -f workerman.webman.php.pid ]]; then
-    php -c cli-php.ini webman.php stop
-    echo "Webman stopped. Restart it with your process manager."
-fi
-if [[ -f /etc/init.d/bt ]]; then
-    chown -R www -- "$PWD"
-fi
-echo "Update completed. Verify the web app, scheduler and queue workers."
+# Keep maintenance until PHP-FPM, document root, worker and cron point to this release.
+echo "Release đã chuẩn bị xong, vẫn ở chế độ bảo trì. Chuyển PHP-FPM/Horizon/cron rồi chạy php artisan up theo readme.md."

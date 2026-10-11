@@ -3,37 +3,28 @@
 ini_set('display_errors', 0);
 error_reporting(0);
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
 
 // Đặt múi giờ JP
 date_default_timezone_set('Asia/Tokyo');
 
 $token = $_GET['token'] ?? '';
-if (empty($token)) {
+if (!is_string($token) || $token === '' || strlen($token) > 256) {
     die(json_encode(['success' => false, 'error' => 'Thiếu token']));
 }
 
 $envPath = __DIR__ . '/../.env';
 $dbHost = '127.0.0.1'; $dbPort = '3306'; $dbName = 'database_cua_ban'; $dbUser = 'database_cua_ban'; $dbPass = 'database_cua_ban';
 
-if (file_exists($envPath)) {
-    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0) continue; 
-        $parts = explode('=', $line, 2);
-        if (count($parts) === 2) {
-            $key = trim($parts[0]);
-            $val = trim($parts[1], " \t\n\r\0\x0B\"'"); 
-            
-            if ($key === 'DB_HOST') $dbHost = $val;
-            if ($key === 'DB_PORT') $dbPort = $val;
-            if ($key === 'DB_DATABASE') $dbName = $val;
-            if ($key === 'DB_USERNAME') $dbUser = $val;
-            if ($key === 'DB_PASSWORD') $dbPass = $val;
-        }
-    }
-}
-
 try {
+    require __DIR__ . '/../vendor/autoload.php';
+    // Use the same quoting/escaping parser as Laravel's environment file.
+    $values = \Dotenv\Dotenv::parse(file_get_contents($envPath));
+    $dbHost = $values['DB_HOST'] ?? $dbHost;
+    $dbPort = $values['DB_PORT'] ?? $dbPort;
+    $dbName = $values['DB_DATABASE'] ?? $dbName;
+    $dbUser = $values['DB_USERNAME'] ?? $dbUser;
+    $dbPass = $values['DB_PASSWORD'] ?? $dbPass;
     $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4";
     $pdo = new PDO($dsn, $dbUser, $dbPass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     
@@ -68,7 +59,7 @@ try {
     } else {
         echo json_encode(['success' => false, 'error' => 'Token không tồn tại']);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(['success' => false, 'error' => 'Lỗi kết nối CSDL']);
 }
 ?>

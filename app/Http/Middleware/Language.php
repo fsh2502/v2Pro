@@ -9,8 +9,9 @@ class Language
 {
     public function handle($request, Closure $next)
     {
-        if ($request->header('content-language')) {
-            App::setLocale($request->header('content-language'));
+        $locale = $request->header('content-language');
+        if (in_array($locale, ['vi-VN', 'en-US', 'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR', 'fa-IR'], true)) {
+            App::setLocale($locale);
         }
         return $next($request);
     }

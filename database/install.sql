@@ -7,7 +7,6 @@ SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 
 SET NAMES utf8mb4;
 
-DROP TABLE IF EXISTS `failed_jobs`;
 CREATE TABLE `failed_jobs` (
                                `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                                `connection` text COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -19,7 +18,6 @@ CREATE TABLE `failed_jobs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-DROP TABLE IF EXISTS `v2_commission_log`;
 CREATE TABLE `v2_commission_log` (
                                      `id` int(11) NOT NULL AUTO_INCREMENT,
                                      `invite_user_id` int(11) NOT NULL,
@@ -33,7 +31,6 @@ CREATE TABLE `v2_commission_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_coupon`;
 CREATE TABLE `v2_coupon` (
                              `id` int(11) NOT NULL AUTO_INCREMENT,
                              `code` varchar(255) NOT NULL,
@@ -53,7 +50,6 @@ CREATE TABLE `v2_coupon` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_giftcard`;
 CREATE TABLE `v2_giftcard` (
                              `id` int(11) NOT NULL AUTO_INCREMENT,
                              `code` varchar(255) NOT NULL,
@@ -71,7 +67,6 @@ CREATE TABLE `v2_giftcard` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_invite_code`;
 CREATE TABLE `v2_invite_code` (
                                   `id` int(11) NOT NULL AUTO_INCREMENT,
                                   `user_id` int(11) NOT NULL,
@@ -84,7 +79,6 @@ CREATE TABLE `v2_invite_code` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_knowledge`;
 CREATE TABLE `v2_knowledge` (
                                 `id` int(11) NOT NULL AUTO_INCREMENT,
                                 `language` char(5) NOT NULL COMMENT '語言',
@@ -99,7 +93,6 @@ CREATE TABLE `v2_knowledge` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知識庫';
 
 
-DROP TABLE IF EXISTS `v2_log`;
 CREATE TABLE `v2_log` (
                           `id` int(11) NOT NULL AUTO_INCREMENT,
                           `title` text NOT NULL,
@@ -116,7 +109,6 @@ CREATE TABLE `v2_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_mail_log`;
 CREATE TABLE `v2_mail_log` (
                                `id` int(11) NOT NULL AUTO_INCREMENT,
                                `email` varchar(64) NOT NULL,
@@ -129,7 +121,6 @@ CREATE TABLE `v2_mail_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_notice`;
 CREATE TABLE `v2_notice` (
                              `id` int(11) NOT NULL AUTO_INCREMENT,
                              `staff_owner_id` int(11) DEFAULT NULL,
@@ -145,7 +136,6 @@ CREATE TABLE `v2_notice` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_order`;
 CREATE TABLE `v2_order` (
                             `id` int(11) NOT NULL AUTO_INCREMENT,
                             `invite_user_id` int(11) DEFAULT NULL,
@@ -178,7 +168,6 @@ CREATE TABLE `v2_order` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_payment`;
 CREATE TABLE `v2_payment` (
                               `id` int(11) NOT NULL AUTO_INCREMENT,
                               `uuid` char(32) NOT NULL,
@@ -197,7 +186,6 @@ CREATE TABLE `v2_payment` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_plan`;
 CREATE TABLE `v2_plan` (
                            `id` int(11) NOT NULL AUTO_INCREMENT,
                            `group_id` int(11) NOT NULL,
@@ -225,7 +213,6 @@ CREATE TABLE `v2_plan` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_group`;
 CREATE TABLE `v2_server_group` (
                                    `id` int(11) NOT NULL AUTO_INCREMENT,
                                    `name` varchar(255) NOT NULL,
@@ -235,7 +222,6 @@ CREATE TABLE `v2_server_group` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_server_tuic`;
 CREATE TABLE `v2_server_tuic` (
                                       `id` int(11) NOT NULL AUTO_INCREMENT,
                                       `group_id` varchar(255) NOT NULL,
@@ -261,7 +247,6 @@ CREATE TABLE `v2_server_tuic` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_hysteria`;
 CREATE TABLE `v2_server_hysteria` (
                                       `id` int(11) NOT NULL AUTO_INCREMENT,
                                       `version` int(11) NOT NULL,
@@ -288,7 +273,6 @@ CREATE TABLE `v2_server_hysteria` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_route`;
 CREATE TABLE `v2_server_route` (
                                    `id` int(11) NOT NULL AUTO_INCREMENT,
                                    `remarks` varchar(255) NOT NULL,
@@ -301,7 +285,6 @@ CREATE TABLE `v2_server_route` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_shadowsocks`;
 CREATE TABLE `v2_server_shadowsocks` (
                                          `id` int(11) NOT NULL AUTO_INCREMENT,
                                          `group_id` varchar(255) NOT NULL,
@@ -324,7 +307,6 @@ CREATE TABLE `v2_server_shadowsocks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_trojan`;
 CREATE TABLE `v2_server_trojan` (
                                     `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '节点ID',
                                     `group_id` varchar(255) NOT NULL COMMENT '节点组',
@@ -348,7 +330,6 @@ CREATE TABLE `v2_server_trojan` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='trojan伺服器表';
 
 
-DROP TABLE IF EXISTS `v2_server_vless`;
 CREATE TABLE `v2_server_vless` (
                                    `id` int(11) NOT NULL AUTO_INCREMENT,
                                    `group_id` text NOT NULL,
@@ -375,7 +356,6 @@ CREATE TABLE `v2_server_vless` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_server_vmess`;
 CREATE TABLE `v2_server_vmess` (
                                    `id` int(11) NOT NULL AUTO_INCREMENT,
                                    `group_id` varchar(255) NOT NULL,
@@ -401,7 +381,6 @@ CREATE TABLE `v2_server_vmess` (
                                    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-DROP TABLE IF EXISTS `v2_server_anytls`;
 CREATE TABLE `v2_server_anytls` (
                                       `id` int(11) NOT NULL AUTO_INCREMENT,
                                       `group_id` varchar(255) NOT NULL,
@@ -423,7 +402,6 @@ CREATE TABLE `v2_server_anytls` (
                                       PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-DROP TABLE IF EXISTS `v2_server_v2node`;
 CREATE TABLE `v2_server_v2node` (
                                     `id` int(11) NOT NULL AUTO_INCREMENT,
                                     `group_id` varchar(255) NOT NULL,
@@ -461,7 +439,6 @@ CREATE TABLE `v2_server_v2node` (
                                     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-DROP TABLE IF EXISTS `v2_stat`;
 CREATE TABLE `v2_stat` (
                            `id` int(11) NOT NULL AUTO_INCREMENT,
                            `record_at` int(11) NOT NULL,
@@ -482,7 +459,6 @@ CREATE TABLE `v2_stat` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='订单统计';
 
 
-DROP TABLE IF EXISTS `v2_stat_server`;
 CREATE TABLE `v2_stat_server` (
                                   `id` int(11) NOT NULL AUTO_INCREMENT,
                                   `server_id` int(11) NOT NULL COMMENT '节点id',
@@ -500,7 +476,6 @@ CREATE TABLE `v2_stat_server` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='节点数据统计';
 
 
-DROP TABLE IF EXISTS `v2_stat_user`;
 CREATE TABLE `v2_stat_user` (
                                 `id` int(11) NOT NULL AUTO_INCREMENT,
                                 `user_id` int(11) NOT NULL,
@@ -519,7 +494,6 @@ CREATE TABLE `v2_stat_user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `v2_ticket`;
 CREATE TABLE `v2_ticket` (
                              `id` int(11) NOT NULL AUTO_INCREMENT,
                              `user_id` int(11) NOT NULL,
@@ -533,7 +507,6 @@ CREATE TABLE `v2_ticket` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_ticket_message`;
 CREATE TABLE `v2_ticket_message` (
                                      `id` int(11) NOT NULL AUTO_INCREMENT,
                                      `user_id` int(11) NOT NULL,
@@ -545,7 +518,6 @@ CREATE TABLE `v2_ticket_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `v2_user`;
 CREATE TABLE `v2_user` (
                            `id` int(11) NOT NULL AUTO_INCREMENT,
                            `invite_user_id` int(11) DEFAULT NULL,
@@ -594,8 +566,6 @@ CREATE TABLE `v2_user` (
                            KEY `v2_user_staff_plan_id_index` (`staff_plan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-DROP TABLE IF EXISTS `v2_staff_plan_permission`;
-DROP TABLE IF EXISTS `v2_staff_plan`;
 CREATE TABLE `v2_staff_plan` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
     `name` varchar(128) NOT NULL,
@@ -619,7 +589,6 @@ CREATE TABLE `v2_staff_plan_permission` (
 -- 2025-09-12 10:05:00
 
 -- CTV activity journal: credentials are never stored.
-DROP TABLE IF EXISTS `v2_staff_activity_log`;
 CREATE TABLE IF NOT EXISTS `v2_staff_activity_log` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT,
     `actor_id` int DEFAULT NULL,

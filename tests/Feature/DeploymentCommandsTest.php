@@ -40,6 +40,7 @@ class DeploymentCommandsTest extends TestCase
             private $schema;
             public function __construct($schema) { $this->schema = $schema; }
             public function getPdo() {}
+            public function getDriverName() { return 'mysql'; }
             public function getSchemaBuilder() { return $this->schema; }
         });
         $this->output = new BufferedOutput();
@@ -59,32 +60,25 @@ class DeploymentCommandsTest extends TestCase
         return $command;
     }
 
-    public function test_upgrade_executes_staff_statements_after_comments_and_checks_schema(): void
+    public function test_update_delegates_to_safe_upgrade_without_replaying_sql(): void
     {
-        Artisan::shouldReceive('call')->once()->with('config:cache')->andReturn(0);
-        Artisan::shouldReceive('call')->once()->with('horizon:terminate')->andReturn(0);
-        File::shouldReceive('get')->once()->andReturn(file_get_contents(dirname(__DIR__, 2) . '/database/update.sql'));
-        $statements = [];
-        DB::shouldReceive('statement')->andReturnUsing(function ($sql) use (&$statements) { $statements[] = trim($sql); return true; });
-        $this->schema->shouldReceive('hasColumn')->andReturn(true);
-        $this->assertNull($this->command(new V2boardUpdate())->handle());
-        $this->assertContains('ALTER TABLE `v2_user` ADD `staff_app_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL', $statements);
-        $this->assertContains('ALTER TABLE `v2_user` ADD `staff_plan_id` int DEFAULT NULL', $statements);
-        $journal = array_filter($statements, function ($sql) { return strpos($sql, 'CREATE TABLE IF NOT EXISTS `v2_staff_activity_log`') === 0; });
-        $this->assertCount(1, $journal);
+        DB::shouldReceive('statement')->never();
+        $command = new class extends V2boardUpdate {
+            public array $calls = [];
+            public function option($key = null) { return $key === 'force'; }
+            public function call($command, array $arguments = []) { $this->calls[] = [$command, $arguments]; return 0; }
+        };
+        $this->assertSame(0, $this->command($command)->handle());
+        $this->assertSame([['v2board:db-upgrade', ['--force' => true]]], $command->calls);
     }
 
     public function test_incomplete_upgrade_reports_failure_instead_of_success(): void
     {
-        Artisan::shouldReceive('call')->once()->with('config:cache')->andReturn(0);
-        Artisan::shouldReceive('call')->never()->with('horizon:terminate');
-        File::shouldReceive('get')->once()->andReturn('-- journal' . "\n" . 'CREATE TABLE `v2_staff_activity_log` (id int);');
-        DB::shouldReceive('statement')->once()->andThrow(new \RuntimeException('Database write rejected'));
-        $this->schema->shouldReceive('hasColumn')->andReturnUsing(function ($table) { return $table !== 'v2_staff_activity_log'; });
-        $this->assertSame(1, $this->command(new V2boardUpdate())->handle());
-        $output = $this->output->fetch();
-        $this->assertStringContainsString('v2_staff_activity_log.id', $output);
-        $this->assertStringNotContainsString('更新完毕', $output);
+        $command = new class extends V2boardUpdate {
+            public function option($key = null) { return false; }
+            public function call($command, array $arguments = []) { return 1; }
+        };
+        $this->assertSame(1, $this->command($command)->handle());
     }
 
     public function test_install_runs_first_statement_after_header_and_stops_on_sql_failure(): void
@@ -98,14 +92,37 @@ class DeploymentCommandsTest extends TestCase
         File::shouldReceive('get')->once()->andReturn(file_get_contents(dirname(__DIR__, 2) . '/database/install.sql'));
         Artisan::shouldReceive('call')->once()->with('config:clear')->andReturn(0);
         Artisan::shouldReceive('call')->once()->with('config:cache')->andReturn(0);
+        $this->schema->shouldReceive('getTableListing')->once()->andReturn([]);
         DB::shouldReceive('unprepared')->once()->with(Mockery::on(function ($sql) { return trim($sql) === 'SET NAMES utf8'; }))
             ->andThrow(new \RuntimeException('write denied'));
         $command = new class extends V2boardInstall {
             public function ask($question, $default = null) { return $default ?? 'isolated-test'; }
+            public function secret($question, $fallback = true) { return 'isolated-test-password'; }
         };
         $this->assertSame(1, $this->command($command)->handle());
         $output = $this->output->fetch();
         $this->assertStringContainsString('write denied', $output);
         $this->assertStringNotContainsString('Mọi thứ đã sẵn sàng', $output);
+    }
+
+    public function test_installer_refuses_existing_tables_before_importing_any_sql(): void
+    {
+        $scratch = dirname(__DIR__, 2) . '/artifacts/deployment-review/install-nonempty-test';
+        if (!is_dir($scratch)) mkdir($scratch, 0777, true);
+        file_put_contents($scratch . '/.env.example', "APP_KEY=\nDB_HOST=\nDB_DATABASE=\nDB_USERNAME=\nDB_PASSWORD=\n");
+        $this->app->setBasePath($scratch);
+        $this->app->useEnvironmentPath($scratch);
+        File::shouldReceive('exists')->once()->andReturn(false);
+        File::shouldReceive('get')->once()->andReturn(file_get_contents(dirname(__DIR__, 2) . '/database/install.sql'));
+        Artisan::shouldReceive('call')->with('config:clear')->andReturn(0);
+        Artisan::shouldReceive('call')->with('config:cache')->andReturn(0);
+        $this->schema->shouldReceive('getTableListing')->once()->andReturn(['v2_user']);
+        DB::shouldReceive('unprepared')->never();
+        $command = new class extends V2boardInstall {
+            public function ask($question, $default = null) { return $default ?? 'isolated-test'; }
+            public function secret($question, $fallback = true) { return 'isolated-test-password'; }
+        };
+        $this->assertSame(1, $this->command($command)->handle());
+        $this->assertStringContainsString('Database đã có bảng', $this->output->fetch());
     }
 }
