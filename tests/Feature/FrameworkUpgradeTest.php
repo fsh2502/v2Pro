@@ -59,6 +59,22 @@ class FrameworkUpgradeTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_login_accepts_legacy_single_label_domains_and_rejects_malformed_emails(): void
+    {
+        $translator = new \Illuminate\Translation\Translator(new \Illuminate\Translation\ArrayLoader(), 'en');
+        $factory = new \Illuminate\Validation\Factory($translator, $this->app);
+        $rules = (new \App\Http\Requests\Passport\AuthLogin())->rules();
+        foreach (['admin@test', 'normal@example.com', 'user+tag@example.com'] as $email) {
+            $this->assertTrue($factory->make(['email' => $email, 'password' => 'isolated-password'], $rules)->passes(), $email);
+        }
+        foreach (['', 'not-an-email', 'bad@@example.com', '@test', 'admin@'] as $email) {
+            $this->assertTrue($factory->make(['email' => $email, 'password' => 'isolated-password'], $rules)->fails(), $email);
+        }
+        $this->assertTrue($factory->make(['email' => 'admin@test', 'password' => 'short'], $rules)->fails());
+        $registration = (new \App\Http\Requests\Passport\AuthRegister())->rules();
+        $this->assertTrue($factory->make(['email' => 'admin@test'], ['email' => $registration['email']])->fails());
+    }
+
     public function test_panel_smtp_tls_settings_replace_cached_transport_without_connecting(): void
     {
         config(['v2board' => [

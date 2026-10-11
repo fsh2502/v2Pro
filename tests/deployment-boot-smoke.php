@@ -149,8 +149,24 @@ foreach ([
 $app['db']->table('v2_user')->where('id', 7)->update([
     'password' => password_hash('isolated-regression-password', PASSWORD_BCRYPT), 'is_admin' => 1,
 ]);
-$response = $http('/api/v1/passport/auth/login', 'POST', ['email' => 'legacy@example.com', 'password' => 'isolated-regression-password']);
-$authData = json_decode($response->getContent(), true)['data']['auth_data'] ?? null;
+$authData = null;
+foreach (['legacy@example.com', 'admin@test'] as $email) {
+    $app['db']->table('v2_user')->where('id', 7)->update(['email' => $email]);
+    $response = $http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password']);
+    $authData = json_decode($response->getContent(), true)['data']['auth_data'] ?? null;
+    if ($response->getStatusCode() !== 200 || !$authData) {
+        $errors[] = 'HTTP kernel login failed for existing account ' . $email;
+    }
+}
+foreach (['not-an-email', 'bad@@example.com'] as $email) {
+    if ($http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password'])->getStatusCode() !== 422) {
+        $errors[] = 'HTTP kernel accepted malformed login email ' . $email;
+    }
+}
+$wrongPassword = $http('/api/v1/passport/auth/login', 'POST', ['email' => 'admin@test', 'password' => 'isolated-wrong-password']);
+if ($wrongPassword->getStatusCode() !== 500 || isset(json_decode($wrongPassword->getContent(), true)['data']['auth_data'])) {
+    $errors[] = 'Legacy single-label account did not reject the wrong password.';
+}
 if ($response->getStatusCode() !== 200 || !$authData) {
     $errors[] = 'Login failed through the complete HTTP kernel.';
 } else {
@@ -172,6 +188,6 @@ if ($response->getStatusCode() !== 200 || !$authData) {
 echo 'Real application boot with package discovery: ' . $count . ' routes (' . $applicationRoutes . ' application routes); Staff/Admin views rendered; ' . count($errors) . " errors\n";
 echo "Six migrations replayed on SQLite; legacy identity preserved; knowledge visibility/404 and production worker configuration checked.\n";
 echo "Full Artisan migrate replayed twice without an initial ledger; all seven migrations recorded and legacy failed job preserved.\n";
-echo "HTTP kernel: guest configuration, validation, denied Admin, panels, missing route, login and role revocation checked; Horizon cold/warm JWT authentication checked.\n";
+echo "HTTP kernel: guest configuration, validation, denied Admin, panels, missing route, standard/legacy login, malformed email, wrong password and role revocation checked; Horizon cold/warm JWT authentication checked.\n";
 foreach ($errors as $error) echo $error . "\n";
 exit($errors ? 1 : 0);

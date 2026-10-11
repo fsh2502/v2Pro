@@ -24,6 +24,7 @@ Manifest dùng phiên bản stable và platform PHP 8.3.30, phù hợp PHP CLI �
 - Cập nhật database logger cho Monolog 3; giữ kênh MySQL như bản trước và loại password/token khỏi dữ liệu request ghi log.
 - Sửa lệnh SQL cập nhật để dùng `DB::statement` thay vì truyền Query Expression cho `select`.
 - Sửa đường xử lý ViewException để trả HTTP 500 hợp lệ, và xử lý header/URL subscription trống trên PHP 8.3.
+- Đăng nhập dùng kiểm tra `email:rfc` để giữ tương thích tài khoản cũ có tên miền một thành phần như `admin@test`; đăng ký vẫn dùng `email:strict`. Kiểm thử HTTP xác nhận tài khoản cũ đăng nhập được, email sai cú pháp và mật khẩu sai vẫn bị từ chối.
 - Cập nhật PHPUnit 11 và bỏ hook PHPUnit cũ. PHPUnit mặc định chạy cùng bộ kiểm thử cô lập với `phpunit.isolated.xml`; hai ExampleTest mẫu không nằm trong bộ này.
 - `init.sh` cài từ lock, không tự `require` Adapterman. `update.sh` chặn nâng framework tại chỗ nếu vendor còn Laravel đời cũ. Việc chuyển từ website gốc phải dùng quy trình release riêng bên dưới.
 
@@ -37,7 +38,7 @@ Dùng vendor cài từ chính lock này, không mượn vendor Laravel cũ:
 
 - Composer validate strict và autoload strict PSR: qua.
 - Composer audit toàn bộ lock, gồm cả dev: `advisories: []`, `abandoned: []`, `filter: []`. Không bỏ qua advisory bảo mật.
-- PHPUnit: **80 test, 824 assertion**, không warning/deprecation. Các transport SMTP/Mailgun/Postmark được dựng mà không kết nối ra ngoài; job email được thử với transport array.
+- PHPUnit: **81 test, 834 assertion**, không warning/deprecation. Các transport SMTP/Mailgun/Postmark được dựng mà không kết nối ra ngoài; job email được thử với transport array.
 - Bootstrap thực của ứng dụng: **213 route**, kiểm tra controller, package discovery, render Staff/Admin; HTTP kernel kiểm tra guest config, validation, login, guest bị chặn, Admin bị khóa và Horizon JWT cold/warm.
 - Bảy migration được chạy hai lần trên SQLite cô lập, giữ tài khoản và failed job cũ.
 - Theme iOS Glass: khởi tạo, Blade escaping, manifest JS/CSS qua. Sáu nhóm subscription/TLS/REALITY/certificate qua; riêng certificate có 76 kiểm tra.

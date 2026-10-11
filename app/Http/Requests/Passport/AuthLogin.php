@@ -14,7 +14,9 @@ class AuthLogin extends FormRequest
     public function rules()
     {
         return [
-            'email' => 'required|email:strict',
+            // Existing accounts may use a single-label domain (for example admin@test).
+            // Strict RFC warnings must not prevent them from reaching password verification.
+            'email' => 'required|email:rfc',
             'password' => 'required|min:8'
         ];
     }
