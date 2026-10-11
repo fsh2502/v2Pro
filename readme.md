@@ -2,7 +2,7 @@
 
 Max dùng Laravel 12, PHP 8.3 và Redis/Horizon, gồm panel Admin, quản lý CTV và giao diện khách hàng iOS Glass. Hướng dẫn này tổng hợp quy trình cài mới và nâng cấp trên **aaPanel/BaoTa + Nginx + PHP-FPM**.
 
-Các khối Bash chạy trong terminal VPS bằng root. Ví dụ dùng thư mục mới **/www/wwwroot/v2pro-max**, source cũ **/www/wwwroot/v2Pro**, PHP **/www/server/php/83/bin/php** và Composer **/root/composer.phar**. Nếu môi trường khác, đổi các đường dẫn trước khi chạy.
+Các khối Bash chạy trong terminal VPS bằng root. Ví dụ dùng thư mục mới **/www/wwwroot/v2pro-max**, source cũ **/www/wwwroot/v2Pro**, PHP **/www/server/php/83/bin/php**. Cài mới chuẩn bị Composer tại **/root/composer.phar**; nâng cấp ưu tiên Composer đã có tại **/www/wwwroot/v2Pro/composer.phar**. Nếu môi trường khác, đổi các đường dẫn trước khi chạy.
 
 | Tình trạng | Quy trình |
 | --- | --- |
@@ -50,7 +50,7 @@ Cả hai phải đạt PASS. Phép thử thứ hai kiểm tra CLI đọc php.ini
 
 ### 1.2. Chuẩn bị Composer tại đường dẫn thực
 
-Các lệnh dưới đây dùng /root/composer.phar. Nếu chưa có file này, khối sau tải installer và kiểm tra SHA-384 theo [hướng dẫn chính thức của Composer](https://getcomposer.org/doc/faqs/how-to-install-composer-programmatically.md):
+Cài mới dùng /root/composer.phar sau khi hoàn tất bước này. Nâng cấp có thể dùng file đã có trong source cũ: /www/wwwroot/v2Pro/composer.phar; các khối nâng cấp bên dưới tự chọn file này trước. Nếu cần tạo Composer tại /root/composer.phar, khối sau tải installer và kiểm tra SHA-384 theo [hướng dẫn chính thức của Composer](https://getcomposer.org/doc/faqs/how-to-install-composer-programmatically.md):
 
 ~~~bash
 (
@@ -179,18 +179,27 @@ Giữ nguyên APP_KEY, database, Redis và các prefix của website cũ. Nếu 
 
 **Không chép vendor, composer.lock, bootstrap/cache hoặc compiled views cũ vào Max. Không chạy installer, key:generate, migrate:fresh, migrate:refresh hoặc nhập database test đè database thật.**
 
-### 3.2. Cài vendor và kiểm tra chỉ đọc
+### 3.2. Cài vendor vào release mới và kiểm tra database chỉ đọc
+
+Chạy phần này tại release mới chưa được website phục vụ. Nó cài vendor và cập nhật cấu hình của release mới; các lệnh kiểm tra database chưa ghi dữ liệu. Nếu Max đã triển khai thành công, dùng phần vận hành thay vì chạy lại quy trình nâng cấp.
 
 ~~~bash
 (
 set -eu
 cd /www/wwwroot/v2pro-max
 deploy_php=/www/server/php/83/bin/php
+composer_path=/www/wwwroot/v2Pro/composer.phar
+if [ ! -f "$composer_path" ]; then composer_path=/root/composer.phar; fi
+if [ ! -f "$composer_path" ]; then
+    echo "DỪNG: chưa tìm thấy Composer. Thực hiện phần 1.2 hoặc đặt composer_path theo file thực."
+    exit 1
+fi
+echo "Composer: $composer_path"
 "$deploy_php" scripts/check-php-runtime.php
-"$deploy_php" /root/composer.phar --no-plugins --no-interaction validate --strict --no-check-publish
-"$deploy_php" /root/composer.phar --no-plugins --no-interaction audit --locked --no-dev
-"$deploy_php" /root/composer.phar --no-plugins --no-interaction install --no-dev --prefer-dist --optimize-autoloader --no-scripts
-"$deploy_php" /root/composer.phar --no-plugins --no-interaction check-platform-reqs --no-dev
+"$deploy_php" "$composer_path" --no-plugins --no-interaction validate --strict --no-check-publish
+"$deploy_php" "$composer_path" --no-plugins --no-interaction audit --locked --no-dev
+"$deploy_php" "$composer_path" --no-plugins --no-interaction install --no-dev --prefer-dist --optimize-autoloader --no-scripts
+"$deploy_php" "$composer_path" --no-plugins --no-interaction check-platform-reqs --no-dev
 "$deploy_php" <<'PHP'
 <?php
 require 'vendor/autoload.php';
@@ -233,7 +242,13 @@ Nếu Supervisor báo not running, kiểm tra tiến trình con thay vì coi đ�
 (
 set -eu
 cd /www/wwwroot/v2pro-max
-PHP_BIN=/www/server/php/83/bin/php COMPOSER_PATH=/root/composer.phar BACKUP_CONFIRMED=yes bash update.sh
+composer_path=/www/wwwroot/v2Pro/composer.phar
+if [ ! -f "$composer_path" ]; then composer_path=/root/composer.phar; fi
+if [ ! -f "$composer_path" ]; then
+    echo "DỪNG: chưa tìm thấy Composer. Thực hiện phần 1.2 hoặc đặt composer_path theo file thực."
+    exit 1
+fi
+PHP_BIN=/www/server/php/83/bin/php COMPOSER_PATH="$composer_path" BACKUP_CONFIRMED=yes bash update.sh
 runuser -u www -- /www/server/php/83/bin/php artisan migrate:status
 runuser -u www -- /www/server/php/83/bin/php artisan v2board:db-upgrade --check
 )
