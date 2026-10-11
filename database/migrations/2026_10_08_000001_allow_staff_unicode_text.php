@@ -10,7 +10,7 @@ class AllowStaffUnicodeText extends Migration
     {
         // The legacy v2_user table uses MySQL utf8 (three-byte characters).
         // Widen only the text fields used by CTV; keep all existing values.
-        if (DB::connection()->getDriverName() !== 'mysql') return;
+        if (!in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) return;
         foreach ([
             'staff_app_name' => 'varchar(64)',
             'remarks' => 'text',

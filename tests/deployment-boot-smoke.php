@@ -25,6 +25,9 @@ $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 // Production keeps its database logger; this isolated check never uses it.
 config(['logging.default' => 'errorlog']);
 $errors = [];
+if (!array_key_exists('v2board:db-upgrade', $app->make(\Illuminate\Contracts\Console\Kernel::class)->all())) {
+    $errors[] = 'Database upgrade command was not registered';
+}
 $count = 0; $applicationRoutes = 0;
 foreach ($app['router']->getRoutes() as $route) {
     $count++;

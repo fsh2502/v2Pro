@@ -108,6 +108,8 @@ php artisan view:cache
 
 ## Worker, scheduler và kiểm thử
 
+Nhánh nâng cấp `codex/laravel12-security` còn có lệnh `php artisan v2board:db-upgrade --check` để xem cấu trúc thiếu và `php artisan v2board:db-upgrade --force` để bổ sung bảng/cột/index rồi chạy migration, giữ dữ liệu cũ. Chỉ chạy trong mã nguồn mới đã cài vendor, đúng cấu hình database và đã sao lưu. Xem [hướng dẫn bộ chuyển đổi database](docs/database-upgrade-command.md).
+
 Sau khi đã cách ly tích hợp của website test, dùng Supervisor/Process Manager để giữ `php artisan horizon` chạy với đúng PHP CLI và user có quyền ghi. Đặt cron mỗi phút cho `php artisan schedule:run`, đường dẫn tuyệt đối tới PHP và `artisan` của site test. Không dùng cấu hình worker/cron của site thật.
 
 Kiểm thử tối thiểu:
