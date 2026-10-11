@@ -40,6 +40,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-plugins --no-scripts
       - run: composer audit --locked --no-dev
       - run: php vendor/bin/phpunit
+      - run: php -d disable_functions=mb_split tests/database-upgrade-runtime-smoke.php
       - run: php tests/deployment-boot-smoke.php
       - run: php tests/certificate-smoke.php
       - run: php tests/ios-glass-theme-smoke.php

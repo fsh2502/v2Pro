@@ -2,6 +2,8 @@
 
 Lệnh có trong nhánh `Max` và nhánh nâng cấp `codex/laravel12-security`, chạy từ thư mục mã nguồn mới đã cài vendor Laravel 12. Lệnh kết nối database theo cấu hình ứng dụng đang được nạp; giữ nguyên `.env`, APP_KEY và cấu hình website cũ. Nếu đang có config cache trỏ sai database, phải sửa cấu hình/cache trước. Lệnh in tên database trước khi làm việc.
 
+Chế độ ghi `--force` kiểm tra extension mbstring thật và hàm `mb_split` trước khi kết nối database. Composer polyfill không đủ thay thế mbregex. Nếu lỗi, `--diagnose` hiển thị tên file/dòng và stack không kèm tham số hoặc thông báo SQL/kết nối. Chỉ dùng cờ chẩn đoán với chế độ lệnh phù hợp: `--check --diagnose` chỉ đọc; `--force --diagnose` vẫn thực hiện nâng cấp, cần bảo trì và backup như `--force` thông thường. `0 thay đổi cấu trúc` không có nghĩa migration đã hoàn tất; phải có thông báo hoàn tất và kiểm tra `migrate:status`.
+
 ## Sử dụng
 
 Xem trước, không ghi database:

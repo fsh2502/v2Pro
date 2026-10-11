@@ -12,7 +12,8 @@ class DatabaseUpgrade extends Command
 {
     protected $signature = 'v2board:db-upgrade
         {--check : Xem các bảng, cột, index cần bổ sung, không ghi database}
-        {--force : Thực hiện nâng cấp sau khi đã sao lưu database}';
+        {--force : Thực hiện nâng cấp sau khi đã sao lưu database}
+        {--diagnose : Hiện vị trí lỗi PHP, không hiện tham số hoặc dữ liệu truy vấn}';
 
     protected $description = 'Bổ sung cấu trúc database v2Pro cũ và chạy migration CTV, giữ dữ liệu hiện có';
 
@@ -21,6 +22,10 @@ class DatabaseUpgrade extends Command
         $db = null;
         $locked = false;
         try {
+            if ($this->option('force') && !$this->option('check') &&
+                (!extension_loaded('mbstring') || !function_exists('mb_split'))) {
+                throw new RuntimeException('PHP CLI thiếu mbstring/mb_split (mbregex). Chưa ghi database. Cài/bật extension cho đúng PHP trước khi chạy lại.');
+            }
             $db = DB::connection();
             if (!in_array($db->getDriverName(), ['mysql', 'mariadb'], true) || $db->getTablePrefix() !== '') {
                 throw new RuntimeException('Lệnh này hỗ trợ MySQL/MariaDB với tên bảng v2Pro không có prefix tùy chỉnh.');
@@ -56,7 +61,20 @@ class DatabaseUpgrade extends Command
             $this->info('Hoàn tất: các bảng, cột và index tham chiếu đã có, migration đã chạy. Dữ liệu và cấu hình cũ được giữ nguyên.');
             return self::SUCCESS;
         } catch (Throwable $e) {
-            $this->error($e instanceof RuntimeException ? $e->getMessage() : 'Nâng cấp thất bại (' . get_class($e) . '). Kiểm tra quyền database và log máy chủ; không xóa hoặc nhập lại database.');
+            $message = 'Nâng cấp thất bại (' . get_class($e) . '). Dùng --diagnose để xem vị trí lỗi; không xóa hoặc nhập lại database.';
+            if (get_class($e) === RuntimeException::class ||
+                ($e instanceof \Error && preg_match('/^Call to undefined (?:function|method) [a-zA-Z0-9_\\\\:]+\(\)$/', $e->getMessage()))) {
+                $message = $e->getMessage();
+            }
+            $this->error($message);
+            if ($this->option('diagnose')) {
+                // Deliberately omit exception arguments and SQL/connection messages.
+                $this->line('Vị trí lỗi: ' . $e->getFile() . ':' . $e->getLine());
+                foreach (array_slice($e->getTrace(), 0, 6) as $frame) {
+                    $this->line(($frame['file'] ?? '(nội bộ)') . ':' . ($frame['line'] ?? 0) . ' ' .
+                        ($frame['class'] ?? '') . ($frame['type'] ?? '') . ($frame['function'] ?? '') . '()');
+                }
+            }
             return self::FAILURE;
         } finally {
             if ($locked) {

@@ -296,4 +296,44 @@ class DatabaseUpgradeTest extends TestCase
         $this->assertSame(1, $command->handle($service));
         $this->assertStringNotContainsString('Hoàn tất', $output->fetch());
     }
+
+    public function test_migration_php_error_is_diagnosable_and_lock_is_released_without_exposing_arguments(): void
+    {
+        $db = $this->connection();
+        $db->shouldReceive('selectOne')->once()->with('SELECT GET_LOCK(?, 0) AS acquired', Mockery::type('array'), false)->andReturn((object) ['acquired' => 1]);
+        $db->shouldReceive('selectOne')->once()->with('SELECT RELEASE_LOCK(?)', Mockery::type('array'), false)->andReturn((object) ['released' => 1]);
+        $db->shouldNotReceive('statement');
+        $service = Mockery::mock(DatabaseUpgradeService::class)->makePartial();
+        $service->shouldReceive('plan')->once()->andReturn([]);
+        $command = new class extends DatabaseUpgrade {
+            public function option($key = null) { return in_array($key, ['force', 'diagnose'], true); }
+            public function call($command, array $arguments = []) { $this->failMigration('private-password-marker'); }
+            private function failMigration(string $secret): void { throw new \Error('Call to undefined function Illuminate\\Support\\missing_function()'); }
+        };
+        $output = new BufferedOutput();
+        $command->setLaravel($this->app);
+        $command->setOutput(new OutputStyle(new ArrayInput([]), $output));
+        $this->assertSame(1, $command->handle($service));
+        $text = $output->fetch();
+        $this->assertStringContainsString('missing_function()', $text);
+        $this->assertStringContainsString('Vị trí lỗi:', $text);
+        $this->assertStringNotContainsString('private-password-marker', $text);
+        $this->assertStringNotContainsString('Hoàn tất', $text);
+    }
+
+    public function test_database_exception_details_are_not_exposed_by_diagnose(): void
+    {
+        $db = $this->connection();
+        $db->shouldReceive('selectOne')->with('SELECT GET_LOCK(?, 0) AS acquired', Mockery::type('array'), false)->andReturn((object) ['acquired' => 1]);
+        $db->shouldReceive('selectOne')->once()->with('SELECT RELEASE_LOCK(?)', Mockery::type('array'), false)->andReturn((object) ['released' => 1]);
+        $db->shouldReceive('statement')->once()->andThrow(new \PDOException('SQL with private-customer-marker'));
+        $service = Mockery::mock(DatabaseUpgradeService::class)->makePartial();
+        $service->shouldReceive('plan')->once()->andReturn([['label' => 'Tạo bảng test', 'sql' => 'CREATE TABLE test (id int)']]);
+        [$command, $output] = $this->command(['force' => true, 'diagnose' => true]);
+        $this->assertSame(1, $command->handle($service));
+        $text = $output->fetch();
+        $this->assertStringContainsString('Vị trí lỗi:', $text);
+        $this->assertStringNotContainsString('private-customer-marker', $text);
+        $this->assertStringNotContainsString('Hoàn tất', $text);
+    }
 }
