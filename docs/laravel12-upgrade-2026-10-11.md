@@ -24,7 +24,7 @@ Manifest dùng phiên bản stable và platform PHP 8.3.30, phù hợp PHP CLI �
 - Cập nhật database logger cho Monolog 3; giữ kênh MySQL như bản trước và loại password/token khỏi dữ liệu request ghi log.
 - Sửa lệnh SQL cập nhật để dùng `DB::statement` thay vì truyền Query Expression cho `select`.
 - Sửa đường xử lý ViewException để trả HTTP 500 hợp lệ, và xử lý header/URL subscription trống trên PHP 8.3.
-- Đăng nhập dùng kiểm tra `email:rfc` để giữ tương thích tài khoản cũ có tên miền một thành phần như `admin@test`; đăng ký vẫn dùng `email:strict`. Kiểm thử HTTP xác nhận tài khoản cũ đăng nhập được, email sai cú pháp và mật khẩu sai vẫn bị từ chối.
+- Đăng nhập dùng định danh dạng chuỗi không rỗng, tối đa 255 ký tự, để giữ tương thích tài khoản cũ như `admin@test` và `1234@1`. Tài khoản phải tồn tại, mật khẩu phải đúng và tài khoản không bị khóa; giới hạn thử sai vẫn áp dụng. Trang CTV dùng ô nhập văn bản khi đăng nhập. Đăng ký, quên mật khẩu và gửi mã xác minh vẫn kiểm tra email nghiêm ngặt vì cần địa chỉ nhận thư hợp lệ.
 - Cập nhật PHPUnit 11 và bỏ hook PHPUnit cũ. PHPUnit mặc định chạy cùng bộ kiểm thử cô lập với `phpunit.isolated.xml`; hai ExampleTest mẫu không nằm trong bộ này.
 - `init.sh` cài từ lock, không tự `require` Adapterman. `update.sh` chặn nâng framework tại chỗ nếu vendor còn Laravel đời cũ. Việc chuyển từ website gốc phải dùng quy trình release riêng bên dưới.
 

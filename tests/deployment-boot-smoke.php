@@ -153,7 +153,7 @@ $app['db']->table('v2_user')->where('id', 7)->update([
     'password' => password_hash('isolated-regression-password', PASSWORD_BCRYPT), 'is_admin' => 1,
 ]);
 $authData = null;
-foreach (['legacy@example.com', 'admin@test'] as $email) {
+foreach (['legacy@example.com', 'admin@test', '1234@1'] as $email) {
     $app['db']->table('v2_user')->where('id', 7)->update(['email' => $email]);
     $response = $http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password']);
     $authData = json_decode($response->getContent(), true)['data']['auth_data'] ?? null;
@@ -161,14 +161,20 @@ foreach (['legacy@example.com', 'admin@test'] as $email) {
         $errors[] = 'HTTP kernel login failed for existing account ' . $email;
     }
 }
-foreach (['not-an-email', 'bad@@example.com'] as $email) {
-    if ($http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password'])->getStatusCode() !== 422) {
-        $errors[] = 'HTTP kernel accepted malformed login email ' . $email;
+foreach (['missing@1', 'not-an-email', 'bad@@example.com'] as $email) {
+    $unknown = $http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password']);
+    if ($unknown->getStatusCode() !== 500 || isset(json_decode($unknown->getContent(), true)['data']['auth_data'])) {
+        $errors[] = 'HTTP kernel accepted an unknown account ' . $email;
     }
 }
-$wrongPassword = $http('/api/v1/passport/auth/login', 'POST', ['email' => 'admin@test', 'password' => 'isolated-wrong-password']);
+foreach (['', ['1234@1'], str_repeat('a', 256)] as $email) {
+    if ($http('/api/v1/passport/auth/login', 'POST', ['email' => $email, 'password' => 'isolated-regression-password'])->getStatusCode() !== 422) {
+        $errors[] = 'HTTP kernel accepted an invalid login identifier value.';
+    }
+}
+$wrongPassword = $http('/api/v1/passport/auth/login', 'POST', ['email' => '1234@1', 'password' => 'isolated-wrong-password']);
 if ($wrongPassword->getStatusCode() !== 500 || isset(json_decode($wrongPassword->getContent(), true)['data']['auth_data'])) {
-    $errors[] = 'Legacy single-label account did not reject the wrong password.';
+    $errors[] = 'Legacy numeric-domain account did not reject the wrong password.';
 }
 if ($response->getStatusCode() !== 200 || !$authData) {
     $errors[] = 'Login failed through the complete HTTP kernel.';
@@ -191,6 +197,6 @@ if ($response->getStatusCode() !== 200 || !$authData) {
 echo 'Real application boot with package discovery: ' . $count . ' routes (' . $applicationRoutes . ' application routes); Staff/Admin views rendered; ' . count($errors) . " errors\n";
 echo "Six migrations replayed on SQLite; legacy identity preserved; knowledge visibility/404 and production worker configuration checked.\n";
 echo "Full Artisan migrate replayed twice without an initial ledger; all seven migrations recorded and legacy failed job preserved.\n";
-echo "HTTP kernel: guest configuration, validation, denied Admin, panels, missing route, standard/legacy login, malformed email, wrong password and role revocation checked; Horizon cold/warm JWT authentication checked.\n";
+echo "HTTP kernel: guest configuration, validation, denied Admin, panels, missing route, standard/legacy login (including 1234@1), invalid identifier values, unknown accounts, wrong password and role revocation checked; Horizon cold/warm JWT authentication checked.\n";
 foreach ($errors as $error) echo $error . "\n";
 exit($errors ? 1 : 0);

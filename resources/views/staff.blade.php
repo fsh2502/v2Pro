@@ -39,7 +39,7 @@
     <section id="login-panel" class="block staff-card">
         <h2>Đăng nhập nhân viên</h2>
         <form id="login-form">
-            <label>Email<input class="ant-input" name="email" type="email" autocomplete="username" required></label>
+            <label>Email<input class="ant-input" name="email" type="text" inputmode="email" maxlength="255" autocomplete="username" required></label>
             <label>Mật khẩu<input class="ant-input" name="password" type="password" autocomplete="current-password" required></label>
             <button class="ant-btn ant-btn-primary" type="submit">Đăng nhập</button>
         </form>

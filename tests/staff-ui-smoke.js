@@ -78,8 +78,9 @@ vm.runInContext(fs.readFileSync('public/assets/staff/qr.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('public/assets/staff/activity.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('public/assets/staff/staff.js', 'utf8'), context);
 (async () => {
-    const login = element('login-form'); login.elements.email.value = 'staff@example.com'; login.elements.password.value = 'test-password';
+    const login = element('login-form'); login.elements.email.value = '1234@1'; login.elements.password.value = 'test-password';
     await login.emit('submit');
+    assert.equal(calls.find(call => call.url.includes('passport/auth/login')).body.email, '1234@1');
     for (const id of ['previous', 'next', 'new-customer', 'nav-customers', 'nav-history', 'nav-personalization']) element(id).tagName = 'BUTTON';
     // Real button events pass through task(), which must preserve the fetched bounds.
     await element('nav-customers').emit('click');

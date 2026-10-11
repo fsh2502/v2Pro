@@ -130,6 +130,7 @@ class StaffOwnershipTest extends TestCase
         $router->aliasMiddleware('admin', \App\Http\Middleware\Admin::class);
         $router->group(['prefix' => 'api/v1', 'namespace' => 'App\\Http\\Controllers'], function ($router) {
             (new StaffRoute())->map($router);
+            $router->post('/staff-test-login', 'V1\\Passport\\AuthController@login');
             $router->post('/staff-test-admin/user/update', 'V1\\Admin\\UserController@update')->middleware('admin');
             $router->post('/staff-test-admin/user/delUser', 'V1\\Admin\\UserController@delUser')->middleware('admin');
             $router->post('/staff-test-admin/user/allDel', 'V1\\Admin\\UserController@allDel')->middleware('admin');
@@ -170,9 +171,37 @@ class StaffOwnershipTest extends TestCase
         }
     }
 
+    public function test_legacy_identifiers_log_in_without_bypassing_password_ban_or_roles(): void
+    {
+        foreach ([$this->admin, $this->a, $this->owned] as $user) {
+            $email = $user === $this->owned ? '1234@1' : $user->id . '@1';
+            $user->update(['email' => $email, 'password' => password_hash('correct-password', PASSWORD_DEFAULT)]);
+            [$status, $body] = $this->api('/api/v1/staff-test-login', ['email' => $email, 'password' => 'correct-password'], 'POST');
+            $this->assertSame(200, $status);
+            $session = AuthService::decryptAuthData($body['data']['auth_data']);
+            $this->assertSame($user->id, $session['id']);
+            $this->assertSame((int) $user->is_admin, (int) $body['data']['is_admin']);
+            $this->assertSame((int) $user->is_staff, (int) $body['data']['is_staff']);
+
+            [$status, $body] = $this->api('/api/v1/staff-test-login', ['email' => $email, 'password' => 'wrong-password'], 'POST');
+            $this->assertSame(500, $status);
+            $this->assertStringContainsString('Incorrect email or password', $body['message']);
+            $this->assertArrayNotHasKey('data', $body);
+
+            $user->update(['banned' => 1]);
+            [$status, $body] = $this->api('/api/v1/staff-test-login', ['email' => $email, 'password' => 'correct-password'], 'POST');
+            $this->assertSame(500, $status);
+            $this->assertStringContainsString('suspended', $body['message']);
+            $this->assertArrayNotHasKey('data', $body);
+        }
+        [$status, $body] = $this->api('/api/v1/staff-test-login', ['email' => 'missing@1', 'password' => 'correct-password'], 'POST');
+        $this->assertSame(500, $status);
+        $this->assertArrayNotHasKey('data', $body);
+    }
+
     public function test_default_login_password_limit_counts_failures_and_blocks_after_five(): void
     {
-        $this->owned->update(['password' => password_hash('correct-password', PASSWORD_DEFAULT)]);
+        $this->owned->update(['email' => '1234@1', 'password' => password_hash('correct-password', PASSWORD_DEFAULT)]);
         $controller = new \App\Http\Controllers\V1\Passport\AuthController();
         $key = \App\Utils\CacheKey::get('PASSWORD_ERROR_LIMIT', $this->owned->email);
         for ($attempt = 1; $attempt <= 6; $attempt++) {
