@@ -33,4 +33,29 @@ class SubscriptionNameService
         });
         return $config;
     }
+
+    public static function profileTitleHeader(string $name, bool $forceBase64 = false): string
+    {
+        // HTTP header readers do not consistently decode raw UTF-8. The
+        // subscription clients using this helper support the base64: convention.
+        if ($forceBase64 || preg_match('/[^\x20-\x7E]/', $name) || str_starts_with($name, 'base64:')) {
+            return 'base64:' . base64_encode($name);
+        }
+        return $name;
+    }
+
+    public static function limitProfileName(string $name, int $limit): string
+    {
+        // Keep the client's code-point limit, but never split a flag pair,
+        // variation selector, skin tone or joined emoji at the boundary.
+        preg_match_all('/\X/u', $name, $matches);
+        $result = '';
+        $length = 0;
+        foreach ($matches[0] as $cluster) {
+            $length += mb_strlen($cluster, 'UTF-8');
+            if ($length > $limit) break;
+            $result .= $cluster;
+        }
+        return $result;
+    }
 }

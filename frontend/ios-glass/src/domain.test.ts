@@ -76,7 +76,7 @@ describe("import links", () => {
                 "Tên cá nhân",
             ),
         ).toBe(
-            "hiddify://import/https://example.com/sub?token=demo&flag=hiddify#T%C3%AAn%20c%C3%A1%20nh%C3%A2n",
+            "hiddify://import/?url=https%3A%2F%2Fexample.com%2Fsub%3Ftoken%3Ddemo%26flag%3Dhiddify&name=T%C3%AAn%20c%C3%A1%20nh%C3%A2n",
         );
     });
     it("encodes a sing-box URL with a single import flag", () => {

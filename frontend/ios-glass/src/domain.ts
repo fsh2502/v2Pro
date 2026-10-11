@@ -91,7 +91,9 @@ export function importUrl(client: string, raw: string, name: string) {
     const encodedSource = encodeURIComponent(source);
     const encodedName = encodeURIComponent(name);
     if (definition.scheme === "hiddify")
-        return `hiddify://import/${source}#${encodeURIComponent(name)}`;
+        // Hiddify reads uri.fragment without decoding it; queryParameters are
+        // decoded by its parser, preserving emoji and literal %, +, & and #.
+        return `hiddify://import/?url=${encodedSource}&name=${encodedName}`;
     if (definition.scheme === "sing-box")
         return `sing-box://import-remote-profile?url=${encodeURIComponent(source)}#${encodeURIComponent(name)}`;
     if (definition.scheme === "shadowrocket")
@@ -107,7 +109,11 @@ export function importUrl(client: string, raw: string, name: string) {
         case "stash":
             return `stash://install-config?url=${encodedSource}&name=${encodedName}`;
         case "quantumult-x":
-            return `quantumult-x:///update-configuration?remote-resource=${encodeURIComponent(JSON.stringify({ server_remote: [`${source}, tag=${encodedName}`] }))}`;
+            // Quantumult X expects the tag inside JSON as text. Encoding it
+            // again leaves percent escapes in the displayed resource name.
+            // Escape only resource-line delimiters to keep a name from adding
+            // another option or configuration line.
+            return `quantumult-x:///update-configuration?remote-resource=${encodeURIComponent(JSON.stringify({ server_remote: [`${source}, tag=${name.replace(/[,\r\n]/g, encodeURIComponent)}`] }))}`;
         case "loon":
             return `loon://import?nodelist=${encodedSource}&name=${encodedName}`;
         case "v2rayng":

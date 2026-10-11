@@ -82,4 +82,45 @@ class IosGlassSubscriptionTest extends TestCase
         $this->assertSame('Panel gốc', $data['profile_name']);
         $this->assertNull($data['staff_plan']);
     }
+
+    public function test_subscription_titles_preserve_flags_and_unicode_as_ascii_safe_headers(): void
+    {
+        $renderers = [
+            \App\Protocols\Hiddify::class,
+            \App\Protocols\Singbox\Singbox::class,
+            \App\Protocols\Singbox\SingboxOld::class,
+            \App\Protocols\General::class,
+            \App\Protocols\Happ::class,
+            \App\Protocols\v2RayTun::class,
+            \App\Protocols\V2BOX::class,
+        ];
+        $user = ['uuid' => '00000000-0000-0000-0000-000000000001', 'u' => 0, 'd' => 0,
+            'transfer_enable' => 1073741824, 'expired_at' => null];
+        foreach (['🇯🇵SHOPTUANTRUONG🇻🇳', '👩🏽‍💻 Mạng Việt ❤️', 'A & # / + % ? = "B"', 'base64:abc', 'Plain ASCII'] as $name) {
+            config(['v2board.app_name' => $name]);
+            foreach ($renderers as $renderer) {
+                $response = (new $renderer($user, []))->handle();
+                $header = $response->headers->get('profile-title');
+                $this->assertDoesNotMatchRegularExpression('/[^\x20-\x7E]/', $header, $renderer);
+                $decoded = str_starts_with($header, 'base64:') ? base64_decode(substr($header, 7), true) : $header;
+                $this->assertSame($name, $decoded, $renderer);
+                $disposition = $response->headers->get('content-disposition');
+                $this->assertStringStartsWith("attachment; filename*=UTF-8''", $disposition, $renderer);
+                $this->assertSame($name, rawurldecode(substr($disposition, strlen("attachment; filename*=UTF-8''"))), $renderer);
+            }
+        }
+    }
+
+    public function test_limited_profile_titles_do_not_split_flag_pairs_or_joined_emoji(): void
+    {
+        $user = ['uuid' => '00000000-0000-0000-0000-000000000001', 'u' => 0, 'd' => 0,
+            'transfer_enable' => 1073741824, 'expired_at' => null];
+        foreach (['🇻🇳', '👩🏽‍💻', "e\u{0301}", '❤️'] as $cluster) {
+            config(['v2board.app_name' => str_repeat('A', 24) . $cluster]);
+            foreach ([\App\Protocols\Happ::class, \App\Protocols\V2BOX::class] as $renderer) {
+                $response = (new $renderer($user, []))->handle();
+                $this->assertSame(str_repeat('A', 24), $response->headers->get('profile-title'), $renderer);
+            }
+        }
+    }
 }

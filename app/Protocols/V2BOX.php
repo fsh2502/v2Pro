@@ -674,11 +674,7 @@ class V2BOX
             return null;
         }
 
-        if (!empty($this->options['profile_title_base64'])) {
-            return 'base64:' . base64_encode($title);
-        }
-
-        return $title;
+        return \App\Services\SubscriptionNameService::profileTitleHeader($title, !empty($this->options['profile_title_base64']));
     }
 
     protected function getPlainProfileTitle($appName)
@@ -690,7 +686,7 @@ class V2BOX
 
         $title = explode("\n", $title, 2)[0];
 
-        return $this->limitText($title, self::MAX_PROFILE_TITLE_LENGTH);
+        return \App\Services\SubscriptionNameService::limitProfileName($title, self::MAX_PROFILE_TITLE_LENGTH);
     }
 
     protected function getUserInfoHeader($user)
@@ -762,9 +758,7 @@ class V2BOX
             return null;
         }
 
-        $fileName = preg_replace('/[\\\\\\/";]+/', '_', $fileName);
-
-        return 'attachment; filename="' . $fileName . '"';
+        return "attachment; filename*=UTF-8''" . rawurlencode($fileName);
     }
 
     // ========================================

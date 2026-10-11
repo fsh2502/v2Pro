@@ -1036,49 +1036,53 @@
             }
             renderSubscribeBox() {
                 var e = this.props.subscribeUrl
-                  , t = [];
+                  , t = []
+                  , subscriptionName = encodeURIComponent(window.settings.title)
+                  , hiddifySource = new URL(e);
+                hiddifySource.hash = "";
+                hiddifySource.searchParams.set("flag", "hiddify");
                 return t.push({
                     title: "Hiddify",
-                    href: "hiddify://import/" + e + "&flag=sing" + "#" + window.settings.title
+                    href: "hiddify://import/?url=" + encodeURIComponent(hiddifySource.href) + "&name=" + subscriptionName
                 }), t.push({
                     title: "Sing-box",
-                    href: "sing-box://import-remote-profile?url=" + encodeURIComponent(e) + "#" + window.settings.title
+                    href: "sing-box://import-remote-profile?url=" + encodeURIComponent(e) + "#" + subscriptionName
                 }), (Object(u["i"])() || Object(u["j"])()) && (t.push({
                     title: "Shadowrocket",
-                    href: "shadowrocket://add/sub://" + window.btoa(e + "&flag=shadowrocket").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") + "?remark=" + window.settings.title
+                    href: "shadowrocket://add/sub://" + window.btoa(e + "&flag=shadowrocket").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") + "?remark=" + subscriptionName
                 }),
                 t.push({
                     title: "QuantumultX",
-                    href: "quantumult-x:///update-configuration?remote-resource=" + encodeURI(JSON.stringify({
-                        server_remote: [e + ", tag=" + window.settings.title]
+                    href: "quantumult-x:///update-configuration?remote-resource=" + encodeURIComponent(JSON.stringify({
+                        server_remote: [e + ", tag=" + window.settings.title.replace(/[,\r\n]/g, encodeURIComponent)]
                     }))
                 }),
                 t.push({
                     title: "Surge",
-                    href: "surge:///install-config?url=" + encodeURIComponent(e) + "&name=" + window.settings.title
+                    href: "surge:///install-config?url=" + encodeURIComponent(e) + "&name=" + subscriptionName
                 }),
                 t.push({
                     title: "Stash",
-                    href: "stash://install-config?url=" + encodeURIComponent(e) + "&name=" + window.settings.title
+                    href: "stash://install-config?url=" + encodeURIComponent(e) + "&name=" + subscriptionName
                 })),
                 Object(u["k"])() && t.push({
                     title: "ClashX",
-                    href: "clash://install-config?url=" + encodeURIComponent(e) + "&name=" + window.settings.title
+                    href: "clash://install-config?url=" + encodeURIComponent(e) + "&name=" + subscriptionName
                 }),
                 Object(u["n"])() && (t.push({
                     title: "ClashMeta",
-                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + window.settings.title
+                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + subscriptionName
                 })),
                 Object(u["g"])() && (t.push({
                     title: "NekoBox For Android",
-                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + window.settings.title
+                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + subscriptionName
                 }) && t.push({
                     title: "ClashMeta For Android",
-                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + window.settings.title
+                    href: "clash://install-config?url=" + encodeURIComponent(e + "&flag=meta") + "&name=" + subscriptionName
                 }),
                 t.push({
                     title: "Surfboard",
-                    href: "surge:///install-config?url=" + encodeURIComponent(e) + "&name=" + window.settings.title
+                    href: "surge:///install-config?url=" + encodeURIComponent(e) + "&name=" + subscriptionName
                 })),
                 c.a.createElement("div", {
                     className: v.a.oneClickSubscribe,

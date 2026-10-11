@@ -68,10 +68,7 @@ class v2RayTun
     // profile-title 支持 base64 和原文
     protected function getProfileTitle($appName)
     {
-        if (!empty($this->options['profile_title_base64'])) {
-            return 'base64:' . base64_encode($appName);
-        }
-        return $appName;
+        return \App\Services\SubscriptionNameService::profileTitleHeader($appName, !empty($this->options['profile_title_base64']));
     }
 
     // subscription-userinfo

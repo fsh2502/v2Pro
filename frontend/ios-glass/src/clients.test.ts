@@ -146,9 +146,13 @@ describe("application subscription formats", () => {
                     imported.searchParams.get("remote-resource")!,
                 );
                 expect(resource.server_remote).toEqual([
-                    `${source}, tag=${encodeURIComponent(name)}`,
+                    `${source}, tag=${name}`,
                 ]);
-            } else if (["hiddify", "happ", "incy"].includes(id)) {
+            } else if (id === "hiddify") {
+                expect(imported.searchParams.get("url")).toBe(source);
+                expect(imported.searchParams.get("name")).toBe(name);
+                expect(imported.hash).toBe("");
+            } else if (["happ", "incy"].includes(id)) {
                 const prefix =
                     id === "happ" ? "happ://add/" : `${id}://import/`;
                 expect(link!.startsWith(prefix + source)).toBe(true);
@@ -171,4 +175,47 @@ describe("application subscription formats", () => {
     it("rejects unknown application IDs", () => {
         expect(() => importUrl("unknown", raw, name)).toThrow();
     });
+
+    it("keeps Quantumult X resource delimiters out of the name while preserving emoji", () => {
+        const link = new URL(importUrl("quantumultx", raw, "🇻🇳 A, enabled=false\nB")!);
+        const resource = JSON.parse(link.searchParams.get("remote-resource")!);
+        expect(resource.server_remote).toEqual([
+            `${clientSubscriptionUrl("quantumultx", raw)}, tag=🇻🇳 A%2C enabled=false%0AB`,
+        ]);
+    });
+
+    for (const profileName of [
+        "🇯🇵SHOPTUANTRUONG🇻🇳",
+        "👩🏽‍💻 Mạng Việt ❤️",
+        'Tên & # / + % ? = "riêng"',
+        "Literal %F0%9F%87%AF + base64:abc",
+    ]) {
+        it(`preserves the exact Hiddify name after the app's query parser: ${profileName}`, () => {
+            const link = new URL(importUrl("hiddify", raw, profileName)!);
+            // Hiddify's LinkParser uses decoded queryParameters, but keeps
+            // uri.fragment encoded when constructing the local name override.
+            const parsedByHiddify = {
+                url: link.searchParams.get("url"),
+                name: link.searchParams.get("name") ?? link.hash.slice(1),
+            };
+            expect(parsedByHiddify.name).toBe(profileName);
+            expect(parsedByHiddify.url).toBe(clientSubscriptionUrl("hiddify", raw));
+            expect(link.searchParams.getAll("name")).toHaveLength(1);
+        });
+
+        it(`preserves query-based client names without corrupting the subscription token: ${profileName}`, () => {
+            for (const id of ["surge", "stash", "loon", "flclash", "clashverge", "surfboard", "karing", "v2box", "shadowrocket"]) {
+                const link = new URL(importUrl(id, raw, profileName)!);
+                expect(link.searchParams.get(id === "shadowrocket" ? "remark" : "name")).toBe(profileName);
+            }
+        });
+
+        it(`does not double encode Quantumult X names inside JSON: ${profileName}`, () => {
+            const link = new URL(importUrl("quantumultx", raw, profileName)!);
+            const resource = JSON.parse(link.searchParams.get("remote-resource")!);
+            expect(resource.server_remote).toEqual([
+                `${clientSubscriptionUrl("quantumultx", raw)}, tag=${profileName}`,
+            ]);
+        });
+    }
 });

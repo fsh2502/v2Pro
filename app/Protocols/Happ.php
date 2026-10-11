@@ -86,14 +86,14 @@ class Happ
 
     private function buildHeaders($user)
     {
-        $appName = $this->limitText(\App\Services\SubscriptionNameService::forUser($this->user), 25);
+        $appName = \App\Services\SubscriptionNameService::limitProfileName(\App\Services\SubscriptionNameService::forUser($this->user), 25);
         $siteUrl = config('v2board.app_site_url') ?: config('v2board.app_url', '');
         $supportUrl = config('v2board.app_support_url') ?: $siteUrl;
         $expireAt = (int) ($user['expired_at'] ?? 0);
         $headers = [
             'Content-Type' => 'text/plain; charset=UTF-8',
             'Content-Disposition' => "attachment; filename*=UTF-8''" . rawurlencode($appName),
-            'profile-title' => $appName,
+            'profile-title' => \App\Services\SubscriptionNameService::profileTitleHeader($appName),
             'profile-update-interval' => '24',
             'subscription-userinfo' => "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$expireAt}",
         ];
