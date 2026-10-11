@@ -912,28 +912,6 @@ hr {
     font-size: 13px;
     margin-bottom: 20px;
 }
-.client-platforms {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-bottom: 16px;
-}
-.client-platforms button {
-    flex: 1;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    background: var(--hover);
-    color: var(--muted);
-    cursor: pointer;
-    font: inherit;
-    font-size: 13px;
-}
-.client-platforms button[aria-pressed="true"] {
-    border-color: #1484ff;
-    color: #0780ff;
-    background: rgba(21, 132, 255, 0.08);
-}
 .client-options {
     border: 0;
     padding: 0;

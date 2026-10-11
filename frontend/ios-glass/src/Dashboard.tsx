@@ -35,7 +35,6 @@ import {
     getSyncClient,
     syncClients,
     syncPlatforms,
-    type SyncPlatform,
 } from "./clients";
 import {
     clientSubscriptionUrl,
@@ -389,21 +388,22 @@ export function Dashboard() {
 }
 export function Sync() {
     const { sub, go, run, notify } = useApp();
-    const [platform, setPlatform] = useState<SyncPlatform>(() =>
-        detectSyncPlatform(navigator.userAgent),
+    const [platform] = useState(() =>
+        detectSyncPlatform(navigator.userAgent, navigator.maxTouchPoints),
     );
     const [client, setClient] = useState("hiddify");
     const [qr, setQr] = useState("");
     const url = httpUrl(sub.subscribe_url || "");
     const selectedClient = getSyncClient(client);
-    const clientUrl = url ? clientSubscriptionUrl(client, url) : null;
-    const appUrl = url
-        ? importUrl(client, url, sub.profile_name || brand)
-        : null;
-    const choosePlatform = (next: SyncPlatform) => {
-        setPlatform(next);
-        if (!selectedClient.platforms.includes(next)) setClient("hiddify");
-    };
+    const clientUrl =
+        url && platform ? clientSubscriptionUrl(client, url) : url;
+    const appUrl =
+        url && platform
+            ? importUrl(client, url, sub.profile_name || brand)
+            : null;
+    const platformName = syncPlatforms.find(
+        (item) => item.id === platform,
+    )?.name;
     useEffect(() => {
         let active = true;
         setQr("");
@@ -429,53 +429,45 @@ export function Sync() {
             <div className="sync-layout">
                 <Card className="sync-card">
                     <h2>Nhập cấu hình vào ứng dụng</h2>
-                    <p>Chọn ứng dụng bạn đang sử dụng</p>
-                    <div
-                        className="client-platforms"
-                        role="group"
-                        aria-label="Nền tảng thiết bị"
-                    >
-                        {syncPlatforms.map(({ id, name }) => (
-                            <button
-                                key={id}
-                                type="button"
-                                aria-pressed={platform === id}
-                                onClick={() => choosePlatform(id)}
-                            >
-                                {name}
-                            </button>
-                        ))}
-                    </div>
-                    <fieldset className="client-options">
-                        <legend className="sr-only">Ứng dụng</legend>
-                        {syncClients
-                            .filter((item) => item.platforms.includes(platform))
-                            .map(({ id, name }) => (
-                                <label
-                                    key={id}
-                                    className={`client-option ${client === id ? "selected" : ""}`}
-                                >
-                                    <span className={`client-icon ${id}`}>
-                                        {id === "shadowrocket" ? (
-                                            <Rocket />
-                                        ) : id === "hiddify" ? (
-                                            <BarChart3 />
-                                        ) : (
-                                            <Box />
-                                        )}
-                                    </span>
-                                    <strong>{name}</strong>
-                                    <input
-                                        type="radio"
-                                        name="client"
-                                        value={id}
-                                        checked={client === id}
-                                        onChange={() => setClient(id)}
-                                    />
-                                    <ChevronRight size={17} />
-                                </label>
-                            ))}
-                    </fieldset>
+                    <p>
+                        {platformName
+                            ? `Thiết bị: ${platformName}. Chọn ứng dụng bạn đang sử dụng.`
+                            : "Chưa nhận diện được thiết bị. Bạn có thể sao chép URL hoặc quét mã QR để nhập thủ công."}
+                    </p>
+                    {platform && (
+                        <fieldset className="client-options">
+                            <legend className="sr-only">Ứng dụng</legend>
+                            {syncClients
+                                .filter((item) =>
+                                    item.platforms.includes(platform),
+                                )
+                                .map(({ id, name }) => (
+                                    <label
+                                        key={id}
+                                        className={`client-option ${client === id ? "selected" : ""}`}
+                                    >
+                                        <span className={`client-icon ${id}`}>
+                                            {id === "shadowrocket" ? (
+                                                <Rocket />
+                                            ) : id === "hiddify" ? (
+                                                <BarChart3 />
+                                            ) : (
+                                                <Box />
+                                            )}
+                                        </span>
+                                        <strong>{name}</strong>
+                                        <input
+                                            type="radio"
+                                            name="client"
+                                            value={id}
+                                            checked={client === id}
+                                            onChange={() => setClient(id)}
+                                        />
+                                        <ChevronRight size={17} />
+                                    </label>
+                                ))}
+                        </fieldset>
+                    )}
                     {url ? (
                         <>
                             {appUrl ? (
@@ -483,13 +475,13 @@ export function Sync() {
                                     Mở trong {selectedClient.name}{" "}
                                     <ExternalLink size={17} />
                                 </a>
-                            ) : (
+                            ) : platform && selectedClient.id === "nekoray" ? (
                                 <p className="sync-hint">
                                     Nekoray: sao chép URL bên dưới, mở phần quản
                                     lý nhóm đăng ký trong ứng dụng, thêm nhóm và
                                     dán URL.
                                 </p>
-                            )}
+                            ) : null}
                             <button
                                 className="button neutral"
                                 onClick={() =>
@@ -503,9 +495,9 @@ export function Sync() {
                                 Sao chép URL
                             </button>
                             <small className="sync-hint">
-                                URL và mã QR dùng định dạng dành cho{" "}
-                                {selectedClient.name}. Cần cài đặt ứng dụng để
-                                đồng bộ.
+                                {platform
+                                    ? `URL và mã QR dùng định dạng dành cho ${selectedClient.name}. Cần cài đặt ứng dụng để đồng bộ.`
+                                    : "Dán URL vào ứng dụng của bạn để thêm đăng ký."}
                             </small>
                         </>
                     ) : (
@@ -515,7 +507,9 @@ export function Sync() {
                     )}
                 </Card>
                 <Card className="qr-card">
-                    <h2>Mã QR · {selectedClient.name}</h2>
+                    <h2>
+                        {platform ? `Mã QR · ${selectedClient.name}` : "Mã QR"}
+                    </h2>
                     {qr ? (
                         <img
                             className="qr-image"

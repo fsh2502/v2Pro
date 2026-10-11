@@ -190,10 +190,14 @@ export function getSyncClient(id: string): SyncClient {
     return client;
 }
 
-export function detectSyncPlatform(userAgent: string): SyncPlatform {
+export function detectSyncPlatform(
+    userAgent: string,
+    maxTouchPoints = 0,
+): SyncPlatform | null {
     if (/android/i.test(userAgent)) return "android";
     if (/iphone|ipad|ipod/i.test(userAgent)) return "ios";
     if (/windows/i.test(userAgent)) return "windows";
-    if (/macintosh|mac os/i.test(userAgent)) return "macos";
-    return "ios";
+    if (/macintosh|mac os/i.test(userAgent))
+        return maxTouchPoints > 1 ? "ios" : "macos";
+    return null;
 }

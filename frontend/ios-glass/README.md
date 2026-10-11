@@ -61,6 +61,8 @@ Nguồn định dạng import: [Hiddify](https://github.com/hiddify/hiddify-app/
 
 Đối chiếu [EZ-Theme Dashboard.vue](https://github.com/fsh2502/EZ-Theme/blob/10dfdba30d7019648b22439d51622a9162dea818/src/views/dashboard/Dashboard.vue). Các biến thể nền tảng dùng chung một ứng dụng trong `src/clients.ts`:
 
+Trang đồng bộ tự nhận diện hệ điều hành của thiết bị qua User-Agent và số điểm chạm (để nhận diện iPad dùng chế độ desktop). Chỉ hiển thị ứng dụng thuộc nền tảng đã nhận diện; không có các nút chọn hệ điều hành. Nếu chưa nhận diện được, vẫn có URL và QR để nhập thủ công, không tự gán thiết bị thành iOS.
+
 - iOS: Shadowrocket, Surge, Stash, Quantumult X, Hiddify, Sing-box, Loon, Happ, Karing, V2BOX, Incy.
 - Android: FlClash, v2rayNG, Clash, Surfboard, Clash Meta, NekoBox, Sing-box, Hiddify, Happ, Karing, V2BOX, Incy.
 - Windows: FlClash, Clash Verge, Clash, Nekoray, Sing-box, Hiddify, Happ, Karing.

@@ -75,7 +75,18 @@ describe("EZ-Theme client coverage", () => {
         expect(detectSyncPlatform("Mozilla Android 14")).toBe("android");
         expect(detectSyncPlatform("Mozilla Windows NT 10.0")).toBe("windows");
         expect(detectSyncPlatform("Mozilla Macintosh Mac OS X")).toBe("macos");
-        expect(detectSyncPlatform("unknown")).toBe("ios");
+        expect(detectSyncPlatform("unknown")).toBeNull();
+    });
+    it("recognizes iPad desktop mode while retaining macOS and Windows touch devices", () => {
+        const desktopApple =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Safari/605.1.15";
+        expect(detectSyncPlatform(desktopApple, 5)).toBe("ios");
+        expect(detectSyncPlatform(desktopApple, 0)).toBe("macos");
+        expect(detectSyncPlatform("Mozilla Windows NT 10.0", 10)).toBe(
+            "windows",
+        );
+        expect(detectSyncPlatform("Mozilla Android 14", 5)).toBe("android");
+        expect(detectSyncPlatform("Mozilla X11 Linux x86_64", 0)).toBeNull();
     });
 });
 
