@@ -123,4 +123,67 @@ class IosGlassSubscriptionTest extends TestCase
             }
         }
     }
+
+    public function test_happ_domain_exports_keep_staff_title_sni_and_http_host_for_supported_protocols(): void
+    {
+        $staff = User::create(['email' => 'dns-staff@example.com', 'is_staff' => 1, 'staff_app_name' => '🇯🇵 Mạng riêng 🇻🇳']);
+        $customer = User::create(['email' => 'dns-customer@example.com', 'staff_owner_id' => $staff->id,
+            'uuid' => '11111111-1111-4111-8111-111111111111', 'u' => 0, 'd' => 0, 'transfer_enable' => 1073741824]);
+        \Illuminate\Support\Facades\Cache::put('NODE_DIAL_ADDRESS_' . hash('sha256', 'node.example.com'), '192.0.2.10', 60);
+        $base = ['type' => 'v2node', 'host' => 'node.example.com', 'port' => '443',
+            'tls' => 1, 'network' => 'tcp', 'network_settings' => [], 'flow' => '',
+            'tls_settings' => ['server_name' => 'www.softbank.jp', 'fingerprint' => 'chrome',
+                'public_key' => str_repeat('A', 43), 'short_id' => '0123abcd']];
+        $nodes = [];
+        foreach (['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'anytls'] as $protocol) {
+            $node = array_replace($base, ['protocol' => $protocol, 'name' => $protocol]);
+            if ($protocol === 'vless') $node['tls'] = 2;
+            if ($protocol === 'trojan') {
+                $node['tls_settings'] = [];
+                $node['network'] = 'ws';
+                $node['network_settings'] = ['path' => '/trojan'];
+            }
+            if ($protocol === 'shadowsocks') {
+                $node['tls'] = 0;
+                $node['cipher'] = 'aes-128-gcm';
+            }
+            $nodes[] = $node;
+        }
+        $nodes[] = array_replace($base, ['type' => 'hysteria', 'version' => 2, 'name' => 'legacy-hy2',
+            'insecure' => 0, 'server_name' => 'www.softbank.jp']);
+        $response = (new \App\Protocols\Happ($customer, $nodes))->handle();
+        $this->assertSame(200, $response->getStatusCode());
+        $title = $response->headers->get('profile-title');
+        $this->assertDoesNotMatchRegularExpression('/[^\x20-\x7E]/', $title);
+        $this->assertSame('🇯🇵 Mạng riêng 🇻🇳', base64_decode(substr($title, 7), true));
+        $lines = preg_split('/\r?\n/', trim($response->getContent()));
+        $this->assertCount(count($nodes), $lines);
+        foreach ($lines as $index => $line) {
+            $protocol = $nodes[$index]['protocol'] ?? $nodes[$index]['type'];
+            if ($protocol === 'vmess') {
+                $config = json_decode(base64_decode(substr($line, 8), true), true);
+                $this->assertSame('192.0.2.10', $config['add']);
+                $this->assertSame('www.softbank.jp', $config['sni']);
+                continue;
+            }
+            $parts = parse_url($line);
+            $this->assertSame('192.0.2.10', $parts['host'], $protocol);
+            $this->assertSame(443, $parts['port'], $protocol);
+            parse_str($parts['query'] ?? '', $query);
+            if ($protocol !== 'shadowsocks') {
+                $this->assertSame($protocol === 'trojan' ? 'node.example.com' : 'www.softbank.jp', $query['sni']);
+            }
+            if ($protocol === 'trojan') {
+                $this->assertSame('node.example.com', $query['host']);
+                $this->assertSame('/trojan', $query['path']);
+            }
+            if ($protocol === 'vless') {
+                $this->assertSame('reality', $query['security']);
+                $this->assertSame(str_repeat('A', 43), $query['pbk']);
+                $this->assertSame('0123abcd', $query['sid']);
+            }
+        }
+        $this->assertSame('node.example.com', $nodes[0]['host']);
+        $this->assertSame('🇯🇵 Mạng riêng 🇻🇳', $staff->fresh()->staff_app_name);
+    }
 }

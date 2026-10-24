@@ -270,7 +270,7 @@ class Singbox
         $array['tag'] = $server['name'];
         $array['type'] = 'shadowsocks';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['method'] = $server['cipher'];
         $array['password'] = $password;
         $array['domain_resolver'] = 'local';
@@ -305,7 +305,7 @@ class Singbox
         $array['tag'] = $server['name'];
         $array['type'] = 'vmess';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $uuid;
         $array['security'] = 'auto';
         $array['alter_id'] = 0;
@@ -349,7 +349,7 @@ class Singbox
             "type" => "vless",
             "tag" => $server['name'],
             "server" => $server['host'],
-            "server_port" => $server['port'],
+            "server_port" => (int) $server['port'],
             "uuid" => $password,
             "domain_resolver" => "local",
             "packet_encoding" => "xudp"
@@ -414,7 +414,7 @@ class Singbox
         $array['tag'] = $server['name'];
         $array['type'] = 'trojan';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['password'] = $password;
         $array['domain_resolver'] = 'local';
 
@@ -453,7 +453,7 @@ class Singbox
         $array['tag'] = $server['name'];
         $array['type'] = 'tuic';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $password;
         $array['password'] = $password;
         $array['congestion_control'] = $server['congestion_control'] ?? 'cubic';
@@ -479,7 +479,7 @@ class Singbox
         $array['tag'] = $server['name'];
         $array['type'] = 'anytls';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['password'] = $password;
         $array['domain_resolver'] = 'local';
 

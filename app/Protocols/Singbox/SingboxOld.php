@@ -107,7 +107,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'shadowsocks';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['method'] = $server['cipher'];
         $array['password'] = $password;
         if (isset($server['obfs']) && $server['obfs'] === 'http') {
@@ -141,7 +141,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'vmess';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $uuid;
         $array['security'] = 'auto';
         $array['alter_id'] = 0;
@@ -184,7 +184,7 @@ class SingboxOld
             "type" => "vless",
             "tag" => $server['name'],
             "server" => $server['host'],
-            "server_port" => $server['port'],
+            "server_port" => (int) $server['port'],
             "uuid" => $password,
             "packet_encoding" => "xudp"
         ];
@@ -248,7 +248,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'trojan';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['password'] = $password;
 
         $tlsSettings = $server['tls_settings'] ?? [];
@@ -284,7 +284,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'tuic';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $password;
         $array['password'] = $password;
         $array['congestion_control'] = $server['congestion_control'] ?? 'cubic';
