@@ -18,7 +18,9 @@ class SingboxOld
 
     public function handle()
     {
-        $appName = config('v2board.app_name', 'V2Board');
+        $appName = class_exists(\App\Services\SubscriptionNameService::class)
+            ? \App\Services\SubscriptionNameService::forUser($this->user)
+            : config('v2board.app_name', 'V2Board');
         $this->config = $this->loadConfig();
         $proxies = $this->buildProxies();
         $outbounds = $this->addProxies($proxies);
@@ -30,7 +32,7 @@ class SingboxOld
             ->header('subscription-userinfo', "upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}")
             ->header('profile-update-interval', '24')
             ->header('Profile-Title', 'base64:' . base64_encode($appName))
-            ->header('Content-Disposition', 'attachment; filename="' . $appName . '"');
+            ->header('Content-Disposition', "attachment; filename*=UTF-8''" . rawurlencode($appName));
     }
 
     protected function loadConfig()
@@ -107,7 +109,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'shadowsocks';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['method'] = $server['cipher'];
         $array['password'] = $password;
         if (isset($server['obfs']) && $server['obfs'] === 'http') {
@@ -141,7 +143,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'vmess';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $uuid;
         $array['security'] = 'auto';
         $array['alter_id'] = 0;
@@ -184,7 +186,7 @@ class SingboxOld
             "type" => "vless",
             "tag" => $server['name'],
             "server" => $server['host'],
-            "server_port" => $server['port'],
+            "server_port" => (int) $server['port'],
             "uuid" => $password,
             "packet_encoding" => "xudp"
         ];
@@ -248,7 +250,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'trojan';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['password'] = $password;
 
         $tlsSettings = $server['tls_settings'] ?? [];
@@ -284,7 +286,7 @@ class SingboxOld
         $array['tag'] = $server['name'];
         $array['type'] = 'tuic';
         $array['server'] = $server['host'];
-        $array['server_port'] = $server['port'];
+        $array['server_port'] = (int) $server['port'];
         $array['uuid'] = $password;
         $array['password'] = $password;
         $array['congestion_control'] = $server['congestion_control'] ?? 'cubic';

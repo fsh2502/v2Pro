@@ -2,6 +2,7 @@
 
 namespace App\Protocols;
 
+use App\Services\NodeAddressResolver;
 use App\Utils\Helper;
 
 class Happ
@@ -86,7 +87,11 @@ class Happ
 
     private function buildHeaders($user)
     {
-        $appName = $this->limitText(config('v2board.app_name', 'V2Board'), 25);
+        // The staff/Max build supplies this service; upstream main does not.
+        $appName = class_exists(\App\Services\SubscriptionNameService::class)
+            ? \App\Services\SubscriptionNameService::forUser($this->user)
+            : config('v2board.app_name', 'V2Board');
+        $appName = $this->limitText($appName, 25);
         $siteUrl = config('v2board.app_site_url') ?: config('v2board.app_url', '');
         $supportUrl = config('v2board.app_support_url') ?: $siteUrl;
         $expireAt = (int) ($user['expired_at'] ?? 0);
@@ -211,6 +216,7 @@ class Happ
 
     public static function buildVmess($uuid, $server)
     {
+        $server = self::prepareServerAddress($server, 'vmess');
         $config = [
             "v" => "2",
             "ps" => $server['name'],
@@ -287,6 +293,7 @@ class Happ
 
     public static function buildVless($uuid, $server)
     {
+        $server = self::prepareServerAddress($server, 'vless');
         $name = Helper::encodeURIComponent($server['name']);
         $tlsSettings = $server['tls_settings'] ?? [];
 
@@ -335,6 +342,7 @@ class Happ
 
     public static function buildTrojan($password, $server)
     {
+        $server = self::prepareServerAddress($server, 'trojan');
         $tlsSettings = $server['tls_settings'] ?? [];
         $networkSettings = $server['network_settings'] ?? $server['networkSettings'] ?? [];
         $network = $server['network'] ?? 'tcp';
@@ -371,6 +379,7 @@ class Happ
 
     public static function buildShadowsocks($uuid, $server)
     {
+        $server = self::prepareServerAddress($server, 'shadowsocks');
         $cipher = $server['cipher'];
         if (strpos($cipher, '2022-blake3') !== false) {
             $length = $cipher === '2022-blake3-aes-128-gcm' ? 16 : 32;
@@ -415,6 +424,7 @@ class Happ
 
     public static function buildHysteria2($password, $server)
     {
+        $server = self::prepareServerAddress($server, 'hysteria2');
         $tlsSettings = $server['tls_settings'] ?? [];
         $host = Helper::formatHost($server['host']);
         $name = Helper::encodeURIComponent($server['name']);
@@ -444,6 +454,7 @@ class Happ
 
     private static function buildHysteria2FromLegacy($password, $server)
     {
+        $server = self::prepareServerAddress($server, 'hysteria2-legacy');
         $host = Helper::formatHost($server['host']);
         $name = Helper::encodeURIComponent($server['name']);
 
@@ -479,6 +490,7 @@ class Happ
 
     public static function buildAnytls($password, $server)
     {
+        $server = self::prepareServerAddress($server, 'anytls');
         // Happ does not natively support anytls:// scheme
         // AnyTLS may be handled via xray-core internally
         // Output as standard URI for forward compatibility
@@ -511,6 +523,62 @@ class Happ
         if (isset($params['vcn'])) $params['pcn'] = $params['vcn'];
         $query = http_build_query($params);
         return self::appendHappFragmentOptions("anytls://{$password}@{$host}:{$port}/?{$query}#{$name}\r\n", $server);
+    }
+
+    /**
+     * Resolve only Happ's dial address. Retain the hostname used implicitly
+     * for TLS verification and HTTP virtual hosting before replacing it.
+     */
+    private static function prepareServerAddress(array $server, string $protocol): array
+    {
+        $reality = in_array($protocol, ['vless', 'anytls'], true)
+            && (int) ($server['tls'] ?? 0) === 2;
+        if ((int) config('v2board.happ_domain_resolve_enable', 1) !== 1
+            || ($reality && (int) config('v2board.happ_reality_resolve_enable', 1) !== 1)
+            || trim((string) config('v2board.app_resolve_address', '')) !== '') {
+            return $server;
+        }
+
+        $tls = in_array($protocol, ['trojan', 'hysteria2', 'hysteria2-legacy', 'anytls'], true)
+            || (in_array($protocol, ['vmess', 'vless'], true) && !empty($server['tls']));
+        $settings = $server['tls_settings'] ?? ($server['tlsSettings'] ?? []);
+        $sni = $settings['server_name'] ?? ($settings['serverName'] ?? '');
+        if (in_array($protocol, ['trojan', 'hysteria2-legacy', 'anytls'], true)) {
+            $sni = $server['server_name'] ?? $sni;
+        }
+        $sni = (string) $sni;
+        if ($tls && empty($sni) && ($reality || !empty($server['disable_sni']))) {
+            // REALITY requires its configured target; it cannot be inferred
+            // from the node's hostname. Also retain deliberate no-SNI setups.
+            return $server;
+        }
+
+        $originalHost = $server['host'];
+        $address = (new NodeAddressResolver())->resolve($originalHost);
+        if ($address === $originalHost) return $server;
+
+        $server['host'] = $address;
+        if ($tls) {
+            $sni = $sni !== '' ? $sni : $originalHost;
+            $settings['server_name'] = $sni;
+            $server['tls_settings'] = $settings;
+            $server['server_name'] = $sni;
+        }
+
+        $network = $server['network'] ?? 'tcp';
+        if (in_array($network, ['ws', 'httpupgrade', 'xhttp'], true)) {
+            $transport = $server['network_settings'] ?? ($server['networkSettings'] ?? []);
+            if ($network === 'ws') {
+                if (empty($transport['headers']['Host'])) {
+                    $transport['headers']['Host'] = !empty($transport['host']) ? $transport['host'] : $originalHost;
+                }
+            } elseif (empty($transport['host'])) {
+                $transport['host'] = $originalHost;
+            }
+            $server['network_settings'] = $transport;
+        }
+
+        return $server;
     }
 
     // ==================== Network Settings Helper ====================

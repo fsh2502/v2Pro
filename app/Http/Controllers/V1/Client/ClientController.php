@@ -21,13 +21,20 @@ class ClientController extends Controller
         $flag = strtolower($flag);
         $clientIdentity = $flag . ' ' . strtolower((string) $request->userAgent());
         $isHiddify = strpos($clientIdentity, 'hiddify') !== false;
+        $isHapp = strpos($clientIdentity, 'happ') !== false;
         $user = $request->user;
         // account not expired and is not banned.
         $userService = new UserService();
         if ($userService->isAvailable($user)) {
             $serverService = new ServerService();
             $servers = $serverService->getAvailableServers($user);
-            if($flag) {
+            if ($flag || $isHapp || $isHiddify) {
+                // Happ may advertise its tunnel's sing-box core as well.
+                // It must still receive Happ links rather than a native TUN.
+                if ($isHapp) {
+                    $this->setSubscribeInfoToServers($servers, $user);
+                    return (new \App\Protocols\Happ($user, $servers))->handle();
+                }
                 // Hiddify advertises compatible cores such as sing-box in its
                 // User-Agent. Prefer the app marker before the core marker.
                 if ($isHiddify) {
@@ -35,7 +42,7 @@ class ClientController extends Controller
                         'singbox_version' => $this->getSingboxVersion($clientIdentity),
                     ]))->handle();
                 }
-                if (!strpos($flag, 'sing')) {
+                if (strpos($flag, 'sing') === false) {
                     $this->setSubscribeInfoToServers($servers, $user);
                     foreach (array_reverse(glob(app_path('Protocols') . '/*.php')) as $file) {
                         $file = 'App\\Protocols\\' . basename($file, '.php');
@@ -60,7 +67,7 @@ class ClientController extends Controller
         }
 
         // Handle expired/unavailable users - show expiration message on nodes
-        if (strpos($flag, 'happ') !== false) {
+        if ($isHapp) {
             $class = new \App\Protocols\Happ($user, []);
             return $class->handle();
         }
