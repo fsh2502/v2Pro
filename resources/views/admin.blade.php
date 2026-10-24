@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 
 <head>
     <link rel="stylesheet" href="/assets/admin/components.chunk.css?v={{$version}}">
@@ -30,12 +30,12 @@
 <body>
 <div id="root"></div>
 <script src="/assets/admin/vendors.async.js?v={{$version}}"></script>
-<script src="/assets/admin/components.async.js?v={{$version}}"></script>
+<script src="/assets/admin/components.async.js?v={{$version}}-vi-20261025"></script>
 <script src="/assets/admin/qrcode.async.js?v={{$version}}"></script>
 <script src="/assets/admin/certificate.js?v={{$version}}"></script>
-<script src="/assets/admin/umi.js?v={{$version}}"></script>
-<script src="/assets/admin/vi-VN.js?v={{$version}}"></script>
-<script src="/assets/admin/v2b-mod.js?v={{$version}}"></script>
+<script src="/assets/admin/vi-VN.js?v={{$version}}-vi-20261025"></script>
+<script src="/assets/admin/v2b-mod.js?v={{$version}}-vi-20261025"></script>
+<script src="/assets/admin/umi.js?v={{$version}}-vi-20261025"></script>
 </body>
 
 </html>

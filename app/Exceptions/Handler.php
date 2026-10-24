@@ -7,6 +7,8 @@ use Illuminate\Support\Arr;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 use Facade\Ignition\Exceptions\ViewException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class Handler extends ExceptionHandler
 {
@@ -56,7 +58,26 @@ class Handler extends ExceptionHandler
         if ($exception instanceof ViewException) {
             abort(500, "主题渲染失败。如更新主题，参数可能发生变化请重新配置主题后再试。");
         }
-        return parent::render($request, $exception);
+        $response = parent::render($request, $exception);
+        // Legacy admin controllers return literal Chinese messages. Translate
+        // only error fields; never rewrite successful API data or debug traces.
+        if ($request->attributes->get('admin_locale') === 'vi-VN'
+            && $response instanceof JsonResponse && $response->getStatusCode() >= 400) {
+            $data = $response->getData(true);
+            if ($exception instanceof ValidationException) {
+                $data['message'] = __('The given data was invalid.', [], 'vi-VN');
+            } elseif (isset($data['message']) && is_string($data['message'])) {
+                $data['message'] = __($data['message'], [], 'vi-VN');
+            }
+            foreach ($data['errors'] ?? [] as $field => $messages) {
+                if (!is_array($messages)) continue;
+                $data['errors'][$field] = array_map(function ($message) {
+                    return is_string($message) ? __($message, [], 'vi-VN') : $message;
+                }, $messages);
+            }
+            $response->setData($data);
+        }
+        return $response;
     }
 
 

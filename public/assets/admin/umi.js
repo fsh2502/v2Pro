@@ -32827,10 +32827,10 @@
             monthSelect: "\u9009\u62e9\u6708\u4efd",
             yearSelect: "\u9009\u62e9\u5e74\u4efd",
             decadeSelect: "\u9009\u62e9\u5e74\u4ee3",
-            yearFormat: "YYYY\u5e74",
-            dayFormat: "D\u65e5",
-            dateFormat: "YYYY\u5e74M\u6708D\u65e5",
-            dateTimeFormat: "YYYY\u5e74M\u6708D\u65e5 HH\u65f6mm\u5206ss\u79d2",
+            yearFormat: "YYYY",
+            dayFormat: "D",
+            dateFormat: "DD/MM/YYYY",
+            dateTimeFormat: "DD/MM/YYYY HH:mm:ss",
             previousYear: "\u4e0a\u4e00\u5e74 (Control\u952e\u52a0\u5de6\u65b9\u5411\u952e)",
             nextYear: "\u4e0b\u4e00\u5e74 (Control\u952e\u52a0\u53f3\u65b9\u5411\u952e)",
             previousDecade: "\u4e0a\u4e00\u5e74\u4ee3",
@@ -41515,7 +41515,7 @@
                     onClick: ()=>{
                         r["a"].info({
                             title: "\u5fd8\u8bb0\u5bc6\u7801",
-                            content: a.a.createElement("div", null, a.a.createElement("div", null, "\u5728\u7ad9\u70b9\u76ee\u5f55\u4e0b\u6267\u884c\u547d\u4ee4\u627e\u56de\u5bc6\u7801"), a.a.createElement("code", null, "php artisan reset:password \u7ba1\u7406\u5458\u90ae\u7bb1")),
+                            content: a.a.createElement("div", null, a.a.createElement("div", null, "\u5728\u7ad9\u70b9\u76ee\u5f55\u4e0b\u6267\u884c\u547d\u4ee4\u627e\u56de\u5bc6\u7801"), a.a.createElement("code", null, "php artisan reset:password email_quan_tri")),
                             centered: !0,
                             okText: "\u6211\u77e5\u9053\u4e86",
                             onOk() {}

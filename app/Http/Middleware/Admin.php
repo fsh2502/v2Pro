@@ -16,14 +16,22 @@ class Admin
      */
     public function handle($request, Closure $next)
     {
-        $authorization = $request->input('auth_data') ?? $request->header('authorization');
-        if (!$authorization) abort(403, '未登录或登陆已过期');
+        // The admin panel has a fixed Vietnamese UI, independent of user locale.
+        $request->attributes->set('admin_locale', 'vi-VN');
+        $locale = app()->getLocale();
+        app()->setLocale('vi-VN');
+        try {
+            $authorization = $request->input('auth_data') ?? $request->header('authorization');
+            if (!$authorization) abort(403, '未登录或登陆已过期');
 
-        $user = AuthService::decryptAuthData($authorization);
-        if (!$user || !$user['is_admin']) abort(403, '未登录或登陆已过期');
-        $request->merge([
-            'user' => $user
-        ]);
-        return $next($request);
+            $user = AuthService::decryptAuthData($authorization);
+            if (!$user || !$user['is_admin']) abort(403, '未登录或登陆已过期');
+            $request->merge([
+                'user' => $user
+            ]);
+            return $next($request);
+        } finally {
+            app()->setLocale($locale);
+        }
     }
 }
