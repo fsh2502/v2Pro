@@ -51,7 +51,7 @@ $user = [
 ];
 $node = [
     'type' => 'v2node', 'protocol' => 'vless', 'name' => 'Test node',
-    'host' => '192.0.2.10', 'port' => 443, 'tls' => 2, 'network' => 'tcp',
+    'host' => 'node.example.com', 'port' => 443, 'tls' => 2, 'network' => 'tcp',
     'network_settings' => [], 'flow' => '',
     'tls_settings' => ['server_name' => 'example.com', 'public_key' => str_repeat('A', 43), 'short_id' => '0123abcd'],
 ];
@@ -60,7 +60,7 @@ checkHappResponse(!class_exists('App\\Services\\SubscriptionNameService'), 'Main
 $response = (new App\Protocols\Happ($user, [$node]))->handle();
 checkHappResponse($response->status === 200, 'Main subscription did not return HTTP 200');
 checkHappResponse($response->headers['profile-title'] === 'Panel VPN', 'Main did not fall back to the configured app name');
-checkHappResponse(strpos($response->body, 'vless://' . $user['uuid'] . '@192.0.2.10:443?') === 0, 'Main subscription lost its node');
+checkHappResponse(strpos($response->body, 'vless://' . $user['uuid'] . '@node.example.com:443?') === 0, 'Main subscription did not preserve the configured domain');
 checkHappResponse(isset($response->headers['subscription-userinfo']), 'Missing subscription traffic header');
 $expired = (new App\Protocols\Happ($user, []))->handle();
 checkHappResponse($expired->status === 200 && strpos($expired->body, '@127.0.0.1:443?') !== false, 'Expired subscription failed on main');

@@ -1,6 +1,34 @@
 # Địa chỉ domain trong các định dạng xuất cho Happ
 
-Đối chiếu ngày 24/10/2026:
+## Mặc định giữ domain — cập nhật 26/10/2026 trên main
+
+Trường địa chỉ máy chủ trong subscription Happ mặc định dùng đúng `host`
+đã cấu hình trong panel. Ví dụ, node có `host=node.example.com` được xuất
+thành `vless://…@node.example.com:443?...`, không bị đổi thành IP dù panel
+đã có kết quả DNS trong cache. VMess dùng domain trong trường `add`.
+
+Áp dụng cho toàn bộ builder hiện có của Happ: VLESS/REALITY/TLS, Trojan/TLS,
+VMess, Shadowsocks, Hysteria2 (cả cấu trúc cũ) và AnyTLS. Cấu hình nhập bằng
+IP vẫn xuất IP; không thể suy ra domain gốc từ một IP. Không thêm hỗ trợ
+TUIC/Hysteria v1 vào Happ. Các exporter sing-box/Hiddify và các client khác
+vốn xuất `host` gốc, không cần chuyển đổi thêm.
+
+VLESS/REALITY vẫn dùng SNI đích đã cấu hình (ví dụ `www.softbank.jp`), không
+dùng domain địa chỉ kết nối để ghi đè SNI, Public Key hoặc ShortId.
+TLS và HTTP Host riêng, certificate pin cũng giữ nguyên.
+
+Không cần sửa database. Cập nhật mã, nạp lại PHP theo cách đang triển khai,
+rồi cập nhật subscription và ngắt/kết nối lại trong Happ. Bản xuất giữ
+domain; ứng dụng/thiết bị cần phân giải DNS để kết nối thực tế.
+
+Mặc định `happ_domain_resolve_enable` hiện là `0`. Nếu máy chủ đã từng tự
+đặt tùy chọn này thành `1`, đổi về `0` trong `config/v2board.php`, rồi chạy
+`php artisan config:cache` để nhận chế độ domain. Đây là tùy chọn cấu hình
+thủ công, không có mục riêng trong giao diện admin.
+
+## Lịch sử đối chiếu hai nhánh
+
+Đối chiếu ngày 24/10/2026, trước các bản vá domain:
 
 - `main`: `7f009b006dfddf32110815a24a924c29bb057644`.
 - `Max`: `57edec929e817914bd67ea2302a9c43737beb87b`.
@@ -9,21 +37,25 @@ Hai nhánh xuất địa chỉ kết nối và các tham số VLESS/REALITY gi�
 Các khác biệt trong `Happ.php` chủ yếu liên quan tới tên subscription.
 Không tìm thấy một bản sửa kết nối domain có sẵn ở `Max` để sao chép.
 
-## Cách xử lý
+## Chế độ IP tùy chọn cho lỗi DNS trên thiết bị
 
 Trước thay đổi, Happ nhận domain nguyên trạng và cần phân giải địa chỉ trên
 thiết bị trước khi kết nối. Nếu bước này thất bại, đổi cùng cấu hình sang IP
 có thể chạy được dù SNI và các khóa REALITY vẫn đúng.
 
-Các builder trong `Happ.php` dùng chung `prepareServerAddress()` và
-`NodeAddressResolver` để phân giải địa chỉ trên panel. Áp dụng cho VLESS
+Để bật lại cách xử lý của bản vá 24/10, đặt
+`'happ_domain_resolve_enable' => 1` trong `config/v2board.php` và chạy
+`php artisan config:cache`. Chỉ trong chế độ này, các builder trong
+`Happ.php` dùng chung `prepareServerAddress()` và `NodeAddressResolver`
+để phân giải địa chỉ trên panel. Áp dụng cho VLESS
 (REALITY, TLS hoặc không TLS), Trojan/TLS, VMess, Shadowsocks, Hysteria2
 (cả cấu trúc cũ có `version=2`) và nhánh xuất AnyTLS hiện có.
 Không bổ sung hỗ trợ giao thức mới cho ứng dụng Happ; các nhánh đang bỏ qua
 TUIC/Hysteria v1 vẫn giữ nguyên.
 
-Domain vẫn được lưu trong panel; chỉ địa chỉ quay số trong liên kết xuất cho
-Happ được thay bằng IP. SNI không được suy ra từ địa chỉ IP này.
+Khi bật chế độ IP, domain vẫn được lưu trong panel; chỉ địa chỉ quay số
+trong liên kết xuất cho Happ được thay bằng IP. SNI không được suy ra từ
+địa chỉ IP này.
 
 - Ưu tiên IPv4, dùng IPv6 nếu chỉ tìm được AAAA; URI IPv6 có dấu ngoặc vuông.
 - Dùng DNS hệ thống của panel, theo CNAME cho IPv4 và cache kết quả thành công
@@ -40,8 +72,8 @@ Happ được thay bằng IP. SNI không được suy ra từ địa chỉ IP n�
   REALITY thiếu SNI và cấu hình TLS cố ý không gửi SNI (`disable_sni=1`,
   SNI trống) vẫn giữ địa chỉ gốc.
 
-Có thể đặt `'happ_domain_resolve_enable' => 0` trong `config/v2board.php` để
-tắt phân giải cho toàn bộ định dạng Happ. Tùy chọn cũ
+Đặt `'happ_domain_resolve_enable' => 0` để trở lại chế độ giữ domain.
+Tùy chọn cũ
 `'happ_reality_resolve_enable' => 0` chỉ tắt cho REALITY, vẫn được giữ để
 tương thích. Đây là các tùy chọn cấu hình thủ công, không phải mục mới trong
 giao diện admin. Nếu thay đổi cấu hình, chạy `php artisan config:cache` theo
@@ -75,18 +107,19 @@ php tests/tls_pin_regression.php
 php tests/subscription-announce-smoke.php
 ```
 
-Kiểm tra đầu dùng DNS/cache giả lập để xác nhận các định dạng xuất giữ tham số
-REALITY, SNI, tên xác minh chứng chỉ, certificate pin và HTTP Host khi phân giải
-domain thành IP. Nó cũng kiểm tra IPv6, hết hạn cache, DNS lỗi, cache lỗi, các
-tùy chọn tắt và việc giữ nguyên client khác. Nó kiểm tra hành vi của exporter,
+Kiểm tra đầu dùng DNS/cache giả lập để xác nhận mặc định các định dạng xuất
+giữ domain, không gọi DNS của panel, kể cả khi đã có IP trong cache. Nó cũng
+kiểm tra chế độ IP bật riêng vẫn giữ tham số REALITY, SNI, tên xác minh chứng
+chỉ, certificate pin và HTTP Host; IPv6, hết hạn cache, DNS/cache lỗi và các
+tùy chọn tắt. Nó kiểm tra hành vi của exporter,
 không tái hiện lỗi DNS trên một phiên Happ thực tế.
 Phép thử `happ-subscription-response.php` cần extension `mbstring`, kiểm tra
 đầy đủ phản hồi subscription và subscription hết hạn khi thiếu lớp đặt tên
 tùy chọn, đồng thời kiểm tra tên riêng khi lớp đó tồn tại.
 
-Tài liệu Happ mô tả cơ chế phân giải domain trước khi kết nối bằng các header
-`server-address-resolve-*`, thuộc nhóm tham số cần Provider ID. Bản sửa này
-phân giải trên panel nên không phụ thuộc tính năng đó:
+Tài liệu Happ cũng mô tả cơ chế phân giải domain trước khi kết nối bằng các
+header `server-address-resolve-*`. Đây là tính năng riêng của ứng dụng;
+bản sửa giữ domain không tự bật hay thay đổi DNS của Happ:
 https://www.happ.su/main/dev-docs/app-management#domain-resolving
 
 Vẫn cần xác nhận kết nối thực tế trong Happ sau khi người dùng cập nhật

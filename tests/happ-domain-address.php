@@ -83,6 +83,60 @@ namespace {
         ],
     ];
 
+    // Default subscriptions must carry domains even when the panel can resolve
+    // them or has a cached IP. No DNS request is needed to generate a profile.
+    Cache::put('NODE_DIAL_ADDRESS_' . hash('sha256', $node['host']), '192.0.2.10', 60);
+    $tlsDomain = array_replace($node, ['tls' => 1]);
+    $domainFixtures = [
+        'buildVless' => $node,
+        'buildTrojan' => $tlsDomain,
+        'buildVmess' => $tlsDomain,
+        'buildHysteria2' => $tlsDomain,
+        'buildHysteria' => $tlsDomain + ['version' => 2, 'insecure' => 0, 'server_name' => 'www.softbank.jp'],
+        'buildAnytls' => $tlsDomain,
+        'buildShadowsocks' => array_replace($tlsDomain, ['tls' => 0, 'cipher' => 'aes-128-gcm']),
+    ];
+    foreach ($domainFixtures as $builder => $fixture) {
+        $fixture['tls_certificate_sha256'] = str_repeat('ab', 32);
+        $uri = Happ::$builder($uuid, $fixture);
+        if ($builder === 'buildVmess') {
+            $query = json_decode(base64_decode(substr(trim($uri), 8)), true);
+            $host = $query['add'];
+        } else {
+            [$endpoint, $query] = parseHapp($uri);
+            $host = $endpoint['host'];
+        }
+        checkHapp($host === $node['host'], "$builder substituted an IP for the configured domain by default");
+        if ($builder !== 'buildShadowsocks') checkHapp($query['sni'] === 'www.softbank.jp', "$builder changed the configured SNI");
+        if ($builder === 'buildVless') {
+            checkHapp($query['security'] === 'reality' && $query['pbk'] === str_repeat('A', 43)
+                && $query['sid'] === '0123abcd' && $query['fp'] === 'safari', 'Domain export changed REALITY keys or fingerprint');
+        }
+        if (in_array($builder, ['buildTrojan', 'buildVmess', 'buildAnytls'], true)) {
+            checkHapp($query['pcs'] === str_repeat('ab', 32), "$builder lost its certificate pin");
+        }
+        $fixture['host'] = '192.0.2.10';
+        $literal = Happ::$builder($uuid, $fixture);
+        $literalHost = $builder === 'buildVmess'
+            ? json_decode(base64_decode(substr(trim($literal), 8)), true)['add']
+            : parseHapp($literal)[0]['host'];
+        checkHapp($literalHost === $fixture['host'], "$builder altered an administrator-specified IP");
+    }
+    foreach (['ws', 'httpupgrade', 'xhttp'] as $network) {
+        $transport = $tlsDomain;
+        $transport['network'] = $network;
+        $transport['network_settings'] = ['path' => '/proxy', 'host' => 'http.example.com',
+            'headers' => ['Host' => 'http.example.com']];
+        [$endpoint, $query] = parseHapp(Happ::buildVless($uuid, $transport));
+        checkHapp($endpoint['host'] === $node['host'] && $query['host'] === 'http.example.com'
+            && $query['path'] === '/proxy' && $query['sni'] === 'www.softbank.jp', "$network changed the configured domain, HTTP Host or SNI");
+    }
+    checkHapp($GLOBALS['dns_calls'] === [], 'Default domain export contacted panel DNS');
+    checkHapp($node['host'] === 'node.example.com', 'Default export modified the stored node');
+    Cache::$values = [];
+
+    // The prior IP workaround remains available only when explicitly enabled.
+    $GLOBALS['test_config'] = ['v2board.happ_domain_resolve_enable' => 1];
     $uri = Happ::buildVless($uuid, $node);
     [$parts, $params] = parseHapp($uri);
     checkHapp($parts['host'] === '192.0.2.10', 'Happ still needs client DNS to dial a REALITY domain');
@@ -125,10 +179,10 @@ namespace {
 
     $GLOBALS['test_config']['v2board.happ_reality_resolve_enable'] = 0;
     checkHapp(parseHapp(Happ::buildVless($uuid, $node))[0]['host'] === $node['host'], 'Ignored resolver opt-out');
-    $GLOBALS['test_config'] = ['v2board.app_resolve_address' => 'front.example.com'];
+    $GLOBALS['test_config'] = ['v2board.happ_domain_resolve_enable' => 1, 'v2board.app_resolve_address' => 'front.example.com'];
     checkHapp(parseHapp(Happ::buildVless($uuid, $node))[0]['host'] === $node['host'], 'Changed an explicit Happ fronting address');
     checkHapp(count($GLOBALS['dns_calls']) === $callsBefore, 'Unrelated configurations performed DNS lookups');
-    $GLOBALS['test_config'] = [];
+    $GLOBALS['test_config'] = ['v2board.happ_domain_resolve_enable' => 1];
 
     Cache::$values = [];
     $GLOBALS['dns_a']['node.example.com'] = ['192.0.2.10'];
@@ -230,9 +284,9 @@ namespace {
             : parseHapp($uri)[0]['host'];
         checkHapp($host === 'node.example.com', "$builder ignored the global opt-out");
     }
-    $GLOBALS['test_config'] = ['v2board.happ_reality_resolve_enable' => 0];
+    $GLOBALS['test_config'] = ['v2board.happ_domain_resolve_enable' => 1, 'v2board.happ_reality_resolve_enable' => 0];
     checkHapp(parseHapp(Happ::buildTrojan($uuid, $tls))[0]['host'] === '192.0.2.10', 'Legacy REALITY opt-out unexpectedly disabled Trojan resolution');
-    $GLOBALS['test_config'] = ['v2board.app_resolve_address' => 'front.example.com'];
+    $GLOBALS['test_config'] = ['v2board.happ_domain_resolve_enable' => 1, 'v2board.app_resolve_address' => 'front.example.com'];
     checkHapp(parseHapp(Happ::buildTrojan($uuid, $tls))[0]['host'] === 'node.example.com', 'Changed explicit Trojan fronting');
     $GLOBALS['test_config'] = [];
 
@@ -240,5 +294,5 @@ namespace {
     $general = App\Utils\Helper::buildVlessUri($uuid, $node);
     checkHapp(parseHapp($general)[0]['host'] === $node['host'], 'Changed other clients');
 
-    echo "PASS: Happ REALITY/TLS/SS domain resolution, SNI, certificate pins, HTTP Host, IPv6, DNS/cache failures and opt-outs\n";
+    echo "PASS: default Happ domains across all supported builders; opt-in IP resolution, SNI, pins, HTTP Host, IPv6 and DNS/cache failures\n";
 }
