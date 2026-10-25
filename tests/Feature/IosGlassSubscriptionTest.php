@@ -126,6 +126,17 @@ class IosGlassSubscriptionTest extends TestCase
 
     public function test_happ_domain_exports_keep_staff_title_sni_and_http_host_for_supported_protocols(): void
     {
+        $this->assertHappAddressMode(false);
+    }
+
+    public function test_happ_opt_in_ip_exports_keep_staff_title_sni_and_http_host_for_supported_protocols(): void
+    {
+        config(['v2board.happ_domain_resolve_enable' => 1]);
+        $this->assertHappAddressMode(true);
+    }
+
+    private function assertHappAddressMode(bool $resolveIp): void
+    {
         $staff = User::create(['email' => 'dns-staff@example.com', 'is_staff' => 1, 'staff_app_name' => '🇯🇵 Mạng riêng 🇻🇳']);
         $customer = User::create(['email' => 'dns-customer@example.com', 'staff_owner_id' => $staff->id,
             'uuid' => '11111111-1111-4111-8111-111111111111', 'u' => 0, 'd' => 0, 'transfer_enable' => 1073741824]);
@@ -158,23 +169,24 @@ class IosGlassSubscriptionTest extends TestCase
         $this->assertSame('🇯🇵 Mạng riêng 🇻🇳', base64_decode(substr($title, 7), true));
         $lines = preg_split('/\r?\n/', trim($response->getContent()));
         $this->assertCount(count($nodes), $lines);
+        $address = $resolveIp ? '192.0.2.10' : 'node.example.com';
         foreach ($lines as $index => $line) {
             $protocol = $nodes[$index]['protocol'] ?? $nodes[$index]['type'];
             if ($protocol === 'vmess') {
                 $config = json_decode(base64_decode(substr($line, 8), true), true);
-                $this->assertSame('192.0.2.10', $config['add']);
+                $this->assertSame($address, $config['add']);
                 $this->assertSame('www.softbank.jp', $config['sni']);
                 continue;
             }
             $parts = parse_url($line);
-            $this->assertSame('192.0.2.10', $parts['host'], $protocol);
+            $this->assertSame($address, $parts['host'], $protocol);
             $this->assertSame(443, $parts['port'], $protocol);
             parse_str($parts['query'] ?? '', $query);
             if ($protocol !== 'shadowsocks') {
-                $this->assertSame($protocol === 'trojan' ? 'node.example.com' : 'www.softbank.jp', $query['sni']);
+                $this->assertSame($protocol === 'trojan' ? ($resolveIp ? 'node.example.com' : '') : 'www.softbank.jp', $query['sni']);
             }
             if ($protocol === 'trojan') {
-                $this->assertSame('node.example.com', $query['host']);
+                $this->assertSame($resolveIp ? 'node.example.com' : '', $query['host']);
                 $this->assertSame('/trojan', $query['path']);
             }
             if ($protocol === 'vless') {

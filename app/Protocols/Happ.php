@@ -522,14 +522,15 @@ class Happ
     }
 
     /**
-     * Resolve only Happ's dial address. Retain the hostname used implicitly
-     * for TLS verification and HTTP virtual hosting before replacing it.
+     * Export the configured hostname by default. Server-side IP substitution
+     * is an opt-in workaround for clients that cannot resolve the hostname.
+     * When enabled, retain implicit TLS names and HTTP virtual hosting.
      */
     private static function prepareServerAddress(array $server, string $protocol): array
     {
         $reality = in_array($protocol, ['vless', 'anytls'], true)
             && (int) ($server['tls'] ?? 0) === 2;
-        if ((int) config('v2board.happ_domain_resolve_enable', 1) !== 1
+        if ((int) config('v2board.happ_domain_resolve_enable', 0) !== 1
             || ($reality && (int) config('v2board.happ_reality_resolve_enable', 1) !== 1)
             || trim((string) config('v2board.app_resolve_address', '')) !== '') {
             return $server;

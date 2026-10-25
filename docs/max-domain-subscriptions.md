@@ -1,29 +1,31 @@
-# Phân giải domain và outbound subscription trên Max
+# Địa chỉ domain và outbound subscription trên Max
 
-Bản vá ngày 24/10/2026, dựa trên Max
-`57edec929e817914bd67ea2302a9c43737beb87b`, chuyển phần sửa kết nối từ main
-`92bb9b6ba44d4ddf590b174ec8a3ccaef59a6c47` sang Max.
+Bản cập nhật 26/10/2026 chuyển hành vi giữ domain từ main `7cc1b55`
+sang Max. Bản vá IP/DNS tùy chọn trước đó nằm ở `4af57e9` ngày 24/10/2026.
 
 ## Hành vi
 
-Khi tạo subscription cho Happ, panel phân giải domain của node thành IP để
-thiết bị không cần phân giải địa chỉ node trước khi tunnel hoạt động. Domain
-vẫn được lưu trong panel. Áp dụng cho các nhánh xuất hiện có: VLESS/REALITY,
+Khi tạo subscription cho Happ, mặc định panel xuất đúng domain đã cấu hình
+trong trường `host`, không đổi thành IP dù đã có kết quả DNS trong cache.
+Ví dụ: `vless://…@node.example.com:443?...`; VMess dùng domain trong trường
+`add`. Nếu quản trị viên nhập IP thì vẫn xuất IP. Áp dụng cho VLESS/REALITY,
 VLESS/TLS và không TLS, VMess, Trojan/TLS, Shadowsocks, Hysteria2 (cả cấu trúc
 cũ với `version=2`) và AnyTLS. Không bổ sung giao thức mới vào ứng dụng Happ.
 
 - Giữ SNI/REALITY target, Public Key, ShortId, flow, fingerprint và các thông
-  số xác thực. Không đổi SNI thành IP đã phân giải.
-- TLS thường thiếu SNI sẽ giữ domain gốc làm SNI để xác minh chứng chỉ;
-  giữ tên xác minh certificate pin.
-- WS/HTTPUpgrade/XHTTP thiếu HTTP Host sẽ giữ domain gốc làm Host; Host cấu
-  hình riêng được giữ nguyên.
-- Ưu tiên IPv4, dự phòng AAAA, cache kết quả DNS thành công 60 giây.
-  DNS lỗi sẽ giữ domain gốc; cache lỗi vẫn dùng kết quả DNS vừa phân giải.
-- Giữ địa chỉ gốc khi REALITY thiếu SNI, TLS cố ý không gửi SNI, hoặc có
-  `app_resolve_address` riêng.
+  số xác thực. SNI không bị ghi đè bằng domain kết nối.
+- Giữ certificate pin và HTTP Host cấu hình riêng. Khi để trống SNI/Host,
+  chế độ domain giữ giá trị trống để ứng dụng dùng địa chỉ domain gốc.
 - Giữ cách đặt tên Staff/CTV, header Base64 và giới hạn tên theo cụm emoji
   của Max. Không thay bằng cách xử lý tên của main.
+- Các định dạng sing-box/Hiddify và client khác vốn xuất `host` gốc.
+
+Nếu bật riêng chế độ IP, panel dùng DNS hệ thống, ưu tiên IPv4, dự phòng
+AAAA và cache kết quả thành công 60 giây. Trước khi thay địa chỉ, TLS thường
+thiếu SNI và WS/HTTPUpgrade/XHTTP thiếu Host được điền domain gốc để giữ
+xác minh chứng chỉ và định tuyến HTTP. DNS lỗi giữ domain; cache lỗi vẫn
+thử DNS. REALITY thiếu SNI, TLS cố ý không gửi SNI hoặc cấu hình có
+`app_resolve_address` riêng không bị thay địa chỉ.
 
 Controller ưu tiên tên ứng dụng Happ khi nhận diện User-Agent có cả Happ
 và core sing-box. Tài khoản hết hạn cũng được chọn đúng định dạng. Bộ xuất
@@ -35,26 +37,34 @@ TUN/routing hoặc tham chiếu DNS `local` của panel.
 
 Các tùy chọn thủ công trong `config/v2board.php`:
 
-- `'happ_domain_resolve_enable' => 0`: tắt phân giải cho toàn bộ định dạng Happ.
-- `'happ_reality_resolve_enable' => 0`: chỉ tắt cho REALITY.
+- `'happ_domain_resolve_enable' => 0`: giữ domain, hiện là mặc định.
+- `'happ_domain_resolve_enable' => 1`: bật lại cách xuất IP của bản vá cũ
+  để xử lý thiết bị không phân giải được DNS.
+- `'happ_reality_resolve_enable' => 0`: chỉ tắt thay IP cho REALITY khi chế
+  độ IP ở trên đang bật.
 
-Nếu thay tùy chọn, chạy `php artisan config:cache` theo quy trình triển khai.
-Khi IP của domain thay đổi, cấu hình mới dùng kết quả mới sau khi cache hết
-hạn; thiết bị đã nhập cấu hình cần cập nhật subscription.
+Nếu từng tự đặt `happ_domain_resolve_enable` thành `1`, đổi về `0` để dùng
+domain. Sau đó chạy `php artisan config:cache` theo quy trình triển khai.
+Trong chế độ domain, ứng dụng/thiết bị phân giải DNS khi kết nối.
 
 Bản vá này không thay database hoặc dependency. Triển khai commit trên Max,
 reload PHP đang chạy website rồi cập nhật subscription trong ứng dụng.
 
+```sh
+git pull --ff-only origin Max
+php artisan config:cache
+```
+
 ## Kiểm chứng
 
-- Test hồi quy mới tái hiện việc VLESS/REALITY trên Max chưa vá xuất nguyên
-  domain thay vì địa chỉ IP dùng để quay số.
+- Test hồi quy xác nhận mặc định các builder giữ domain, không dùng IP đã
+  cache và không gọi DNS của panel; chế độ IP bật riêng vẫn hoạt động.
 - Các test độc lập kiểm tra mọi builder được sửa, SNI, HTTP Host, pin chứng
   chỉ, cache/DNS lỗi, IPv6, nhận diện Happ và kiểu cổng outbound.
 - Kiểm tra Laravel thật qua `IosGlassSubscriptionTest` và
-  `StaffOwnershipTest`: 71 test, 1.002 assertions. Có test mới gọi đầy đủ
-  `Happ::handle()` với cache Laravel và khách thuộc Staff, kiểm tra cả tên
-  Unicode và các giao thức.
+  `StaffOwnershipTest`: 72 test, 1.032 assertions. Các test gọi đầy đủ
+  `Happ::handle()` ở cả chế độ domain và IP, với cache Laravel và khách thuộc
+  Staff, kiểm tra tên Unicode, Base64 header, SNI/khóa REALITY và HTTP Host.
 - Dependencies dùng khi kiểm tra có cùng phiên bản với toàn bộ 122 package
   trong `composer.lock` của Max; database kiểm tra là SQLite trong bộ nhớ.
 - Ba cấu hình outbound mới/cũ/Hiddify đều qua `sing-box check` với core
